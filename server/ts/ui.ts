@@ -6,6 +6,7 @@ import { MORNING, clock, type Habits } from "./habits.ts";
 import type { StageMeta } from "./withings_import.ts";
 import { timeZoneSelect } from "./integrated_ui.ts";
 import { WEB_APP_VERSION } from "./version.ts";
+import { assetTags } from "./assets.ts";
 type Row = Record<string, any>;
 export const escapeHtml = (value: unknown): string =>
   String(value ?? "").replace(
@@ -84,6 +85,12 @@ function metricLabel(row: Row, type: number, weightUnit: string): string {
 function metricTitle(type: number): string {
   return METRICS.find((m) => m.type === type)?.label ?? "Weight";
 }
+export type LayoutOpts = {
+  users?: { id: number; name: string }[];
+  unassigned?: number;
+  theme?: "light" | "dark" | null;
+  entries?: ("app" | "charts")[];
+};
 export function layout(
   title: string,
   body: string,
@@ -91,6 +98,7 @@ export function layout(
   loggedIn: boolean,
   notice = "",
   active = "",
+  opts: LayoutOpts = {},
 ): string {
   const links = [
     ["/", "Dashboard"],
@@ -101,9 +109,9 @@ export function layout(
     ["/settings", "Settings"],
     ["/firmware", "Firmware Bridge"],
   ];
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  return `<!doctype html><html lang="en"${opts.theme ? ` data-theme="${opts.theme}"` : ""}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${e(title)} · YourOwnWeigh</title><link rel="icon" href="/favicon.png" type="image/png">
-    <meta name="csrf-token" content="${e(csrf)}"><link rel="stylesheet" href="/app.css?v=${WEB_APP_VERSION}"><script src="/app.js?v=${WEB_APP_VERSION}" defer></script></head><body>
+    <meta name="csrf-token" content="${e(csrf)}"><link rel="stylesheet" href="/app.css?v=${WEB_APP_VERSION}"><script src="/app.js?v=${WEB_APP_VERSION}" defer></script>${assetTags(opts.entries ?? ["app"])}</head><body>
     <nav><a class="brand" href="/" aria-label="YourOwnWeigh"><img src="/favicon.png" width="36" height="36" alt=""><strong>YOW</strong></a>${
       loggedIn
         ? links

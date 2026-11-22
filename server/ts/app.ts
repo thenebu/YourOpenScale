@@ -7,6 +7,8 @@ import {
   storedMeasures,
 } from "./metrics.ts";
 import type { Point } from "./charts.ts";
+import { handleForkRoute } from "./routes/index.ts";
+import { themeFromCookie } from "./routes/util.ts";
 import { weighHabits } from "./habits.ts";
 import {
   commitWithingsImport,
@@ -49,6 +51,7 @@ import {
   userReadingsPage,
   usersPage,
 } from "./ui.ts";
+import type { LayoutOpts } from "./ui.ts";
 
 type Row = Record<string, any>;
 type Value = string | number | null;
@@ -1663,8 +1666,20 @@ export async function handleApp(
     }
   }
   const notice = (url.searchParams.get("notice") ?? "").slice(0, 250);
-  const page = (title: string, body: string, active = "") =>
-    html(layout(title, body, csrf, loggedIn, notice, active), 200, cookie);
+  const page = (
+    title: string,
+    body: string,
+    active = "",
+    opts: LayoutOpts = {},
+  ) =>
+    html(
+      layout(title, body, csrf, loggedIn, notice, active, {
+        theme: themeFromCookie(request),
+        ...opts,
+      }),
+      200,
+      cookie,
+    );
   const go = (location: string, message = "") =>
     redirect(location, message, cookie);
   if (path.startsWith("/api/backup/")) {
@@ -1829,6 +1844,20 @@ export async function handleApp(
     }
     return json({ error: "Not found" }, 404);
   }
+  const fork = await handleForkRoute({
+    request,
+    db,
+    url,
+    path,
+    method,
+    csrf,
+    loggedIn,
+    adminConfigured,
+    page,
+    go,
+    cookie,
+  });
+  if (fork) return fork;
   if (method === "POST") {
     const submitted = await request.formData();
     if (!equal(formText(submitted, "_csrf"), csrf))
