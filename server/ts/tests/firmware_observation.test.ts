@@ -13,6 +13,12 @@ import {
 } from "../firmware_observation.ts";
 import { scalesWorkspace } from "../integrated_ui.ts";
 
+test("scales page empty state renders its link, not template text", () => {
+  const page = scalesWorkspace([], "t");
+  assert.match(page, /href="\/firmware"[^>]*>Connect a scale</);
+  assert.doesNotMatch(page, /\$\{/);
+});
+
 const now = () => Math.floor(Date.now() / 1000);
 test("authenticated sync records either model's running version, including downgrade; bad/replayed requests cannot refresh it", async () => {
   const dir = mkdtempSync(join(tmpdir(), "yow-firmware-")),
