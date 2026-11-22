@@ -1,4 +1,5 @@
 /** Display formatting (WP-05). Also imported by the web bundle: no node:* imports. */
+import { currentLocale, intlTag, type Locale } from "../i18n/locale.ts";
 import { specFor } from "./spec.ts";
 import type { Unit } from "./types.ts";
 export { chooseAgg } from "./series.ts";
@@ -15,12 +16,13 @@ export function toDisplay(kg: number, unit: Unit): number {
   return kg;
 }
 
-const grouped = new Map<number, Intl.NumberFormat>();
+const grouped = new Map<string, Intl.NumberFormat>();
 function num(value: number, minDecimals: number, maxDecimals = minDecimals): string {
-  const key = minDecimals * 10 + maxDecimals;
+  const locale = currentLocale();
+  const key = `${locale}|${minDecimals * 10 + maxDecimals}`;
   let f = grouped.get(key);
   if (!f) {
-    f = new Intl.NumberFormat("en-GB", { minimumFractionDigits: minDecimals, maximumFractionDigits: maxDecimals });
+    f = new Intl.NumberFormat(intlTag(locale), { minimumFractionDigits: minDecimals, maximumFractionDigits: maxDecimals });
     grouped.set(key, f);
   }
   return f.format(value);
@@ -63,7 +65,7 @@ export function formatMetric(
   const d = opts.decimals ?? metricDecimals(type, spec.unit);
   const text = `${value < 0 ? MINUS : ""}${num(Math.abs(value), d)}`;
   if (spec.unit === "") return text;
-  return spec.unit === "%" ? `${text}%` : `${text} ${spec.unit}`;
+  return spec.unit === "%" ? `${text}${currentLocale() === "de" ? "\u00a0" : ""}%` : `${text} ${spec.unit}`;
 }
 
 function signed(value: number, suffix: string): string {
@@ -81,19 +83,33 @@ export function formatDelta(value: number, type: number, unit: Unit): string {
   return signed(value, spec.unit === "" || spec.unit === "%" ? "" : ` ${spec.unit}`);
 }
 
-/** Weekly rate of change, e.g. "−0.3 kg/week" (lb for lb and st). */
+/** The unit word of a weekly rate; kept here because this module is shared with the web bundle. */
+const WEEK: Record<Locale, string> = { en: "week", de: "Woche" };
+const RELATIVE: Record<Locale, { today: string; yesterday: string; tomorrow: string; ago: (n: number) => string; in: (n: number) => string }> = {
+  en: { today: "today", yesterday: "yesterday", tomorrow: "tomorrow", ago: (n) => `${n} days ago`, in: (n) => `in ${n} days` },
+  de: { today: "heute", yesterday: "gestern", tomorrow: "morgen", ago: (n) => `vor ${n} Tagen`, in: (n) => `in ${n} Tagen` },
+};
+
+/** Unit label of a weekly rate: "kg/week" ("kg/Woche"), "lb/week" for lb and st. */
+export function rateUnitLabel(unit: Unit): string {
+  return `${unit === "kg" ? "kg" : "lb"}/${WEEK[currentLocale()]}`;
+}
+
+/** Weekly rate of change, e.g. "−0.3 kg/week" or "−0,3 kg/Woche" (lb for lb and st). */
 export function formatRate(perWeekKg: number, unit: Unit): string {
   const v = unit === "kg" ? perWeekKg : perWeekKg * KG_TO_LB;
   const label = unit === "kg" ? "kg" : "lb";
-  if (Math.abs(v) < 0.005) return `0 ${label}/week`;
+  const week = WEEK[currentLocale()];
+  if (Math.abs(v) < 0.005) return `0 ${label}/${week}`;
   const d = Math.abs(v) < 0.1 ? 2 : 1;
   const rounded = Number(Math.abs(v).toFixed(d));
-  return `${v < 0 ? MINUS : "+"}${num(rounded, d)} ${label}/week`;
+  return `${v < 0 ? MINUS : "+"}${num(rounded, d)} ${label}/${week}`;
 }
 
 const dateFormats = new Map<string, Intl.DateTimeFormat>();
 function dateFormat(zone: string, style: DateStyle): Intl.DateTimeFormat {
-  const key = `${zone}|${style}`;
+  const locale = currentLocale();
+  const key = `${locale}|${zone}|${style}`;
   let f = dateFormats.get(key);
   if (!f) {
     const options: Intl.DateTimeFormatOptions =
@@ -102,7 +118,7 @@ function dateFormat(zone: string, style: DateStyle): Intl.DateTimeFormat {
       : style === "long" ? { weekday: "long", day: "numeric", month: "long", year: "numeric" }
       : style === "time" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
       : { month: "short", year: "numeric" };
-    f = new Intl.DateTimeFormat("en-GB", { ...options, timeZone: zone });
+    f = new Intl.DateTimeFormat(intlTag(locale), { ...options, timeZone: zone });
     dateFormats.set(key, f);
   }
   return f;
@@ -117,12 +133,13 @@ export function formatDate(t: number, zone: string | null | undefined, style: Da
     f = dateFormat("UTC", style);
   }
   const text = f.format(new Date(t * 1000));
-  return style === "long" ? text.replace(/^(\p{L}+),/u, "$1") : text;
+  return style === "long" && currentLocale() === "en" ? text.replace(/^(\p{L}+),/u, "$1") : text;
 }
 
 export function relativeDays(n: number): string {
-  if (n === 0) return "today";
-  if (n === 1) return "yesterday";
-  if (n === -1) return "tomorrow";
-  return n > 0 ? `${n} days ago` : `in ${-n} days`;
+  const r = RELATIVE[currentLocale()];
+  if (n === 0) return r.today;
+  if (n === 1) return r.yesterday;
+  if (n === -1) return r.tomorrow;
+  return n > 0 ? r.ago(n) : r.in(-n);
 }

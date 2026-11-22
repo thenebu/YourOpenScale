@@ -3,16 +3,16 @@ import type { ECharts } from "./echarts.ts";
 import type { Mounted } from "./mount.ts";
 import { payloadOf, setupChart } from "./bars.ts";
 import type { Opt, Tip } from "./bars.ts";
+import { monthNames, t as i18n, tag, weekdayNames } from "../i18n/index.ts";
 
 export type CalendarCell = { day: string; count: number };
 
 const MAX_YEARS = 5;
 const LEFT = 36;
 const HEAD = 44; // year title + month labels
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const dayLabel = (day: string) =>
-  new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+  new Intl.DateTimeFormat(tag(), { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
     .format(new Date(`${day}T12:00:00Z`)).replace(/^(\p{L}+) /u, "$1, ");
 
 export function mountCalendarHeatmap(el: HTMLElement, cells: CalendarCell[], ctx: { label?: string } = {}): Mounted & { chart: ECharts } {
@@ -34,7 +34,7 @@ export function mountCalendarHeatmap(el: HTMLElement, cells: CalendarCell[], ctx
     const c = byYear[y][k];
     return {
       title: dayLabel(c.day),
-      rows: [{ swatch: "none", color: "", label: "Weigh-ins", value: c.count ? String(c.count) : "None" }],
+      rows: [{ swatch: "none", color: "", label: i18n("chart.weighIns"), value: c.count ? String(c.count) : i18n("chart.none") }],
       notes: [],
     };
   };
@@ -45,7 +45,7 @@ export function mountCalendarHeatmap(el: HTMLElement, cells: CalendarCell[], ctx
   };
 
   return setupChart(el, {
-    label: ctx.label ?? "Weigh-in calendar",
+    label: ctx.label ?? i18n("chart.calendarLabel"),
     className: "chart--calendar",
     trigger: "item",
     responsive: true,
@@ -76,8 +76,8 @@ export function mountCalendarHeatmap(el: HTMLElement, cells: CalendarCell[], ctx
           range: y, left: LEFT, top: i * block + HEAD, cellSize: [cell, cell], orient: "horizontal",
           itemStyle: { color: zero, borderColor: theme.surface, borderWidth: bw },
           splitLine: { show: false }, yearLabel: { show: true, position: "top", margin: 28, fontSize: 13, fontWeight: 600, color: theme.text },
-          monthLabel: { nameMap: MONTHS, fontSize: 12, color: theme.axis, margin: 8 },
-          dayLabel: { firstDay: 1, nameMap: ["", "Mon", "", "Wed", "", "Fri", ""], fontSize: 12, color: theme.axis, margin: 6 },
+          monthLabel: { nameMap: monthNames(), fontSize: 12, color: theme.axis, margin: 8 },
+          dayLabel: { firstDay: 1, nameMap: (() => { const d = weekdayNames(); return ["", d[0], "", d[2], "", d[4], ""]; })(), fontSize: 12, color: theme.axis, margin: 6 },
         })),
         series: byYear.map((list, i) => ({
           type: "heatmap", coordinateSystem: "calendar", calendarIndex: i, animation: false,

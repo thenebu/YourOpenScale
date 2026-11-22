@@ -4,8 +4,9 @@ import { synth } from "./fixtures/synthetic.ts";
 import { dailySeries } from "../analysis/series.ts";
 import { specFor } from "../analysis/spec.ts";
 import {
-  ewmaTrend, goalProgress, linearRate, projectGoal, rateText, trendAt, weeklyRateSeries,
+  ewmaTrend, goalProgress, linearRate, projectGoal, trendAt, weeklyRateSeries,
 } from "../analysis/trend.ts";
+import { rateText } from "../analysis/rate_text.ts";
 import { dayNoonUtc } from "../analysis/time.ts";
 import type { DayPoint, Goal, Rate, TrendPoint } from "../analysis/types.ts";
 

@@ -78,7 +78,7 @@ export function assets(): AppEnv["ASSETS"] {
     async fetch(request) {
       const pathname = new URL(request.url).pathname;
       if (pathname.startsWith("/assets/")) return builtAsset(pathname);
-      if (isPwaPath(pathname)) return pwaResponse(pathname); // WP-16: public, nothing private
+      if (isPwaPath(pathname)) return pwaResponse(pathname, request); // WP-16: public, nothing private
       const filename = decodeURIComponent(
         new URL(request.url).pathname.slice(1),
       );

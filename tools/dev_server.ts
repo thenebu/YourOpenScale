@@ -85,7 +85,13 @@ const server = createServer(async (req, res) => {
   const chunks: Buffer[] = [];
   for await (const c of req) chunks.push(c as Buffer);
   const hasBody = chunks.length > 0 && req.method !== "GET" && req.method !== "HEAD";
-  const headers: Record<string, string> = { Cookie: cookie };
+  // The dev server owns the session cookie; the browser's preference cookies and language header pass through.
+  const prefs = String(req.headers.cookie ?? "")
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => /^(yos_lang|yow_theme)=/.test(part));
+  const headers: Record<string, string> = { Cookie: [cookie, ...prefs].filter(Boolean).join("; ") };
+  if (req.headers["accept-language"]) headers["Accept-Language"] = String(req.headers["accept-language"]);
   if (req.headers["content-type"]) headers["Content-Type"] = String(req.headers["content-type"]);
   // The app checks Origin and CSRF on POSTs; present the same origin the Request URL uses.
   if (req.headers.origin) headers.Origin = "https://local.test";

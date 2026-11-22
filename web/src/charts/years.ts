@@ -7,13 +7,13 @@ import { niceAxis, payloadOf, scaleAlpha, setupChart, valueY } from "./bars.ts";
 import type { Opt, Tip } from "./bars.ts";
 import type { ECharts } from "./echarts.ts";
 import type { Mounted } from "./mount.ts";
+import { monthNames, t as i18n } from "../i18n/index.ts";
 
 const MONTH_START = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const doyLabel = (doy: number) => {
   let m = 0;
   while (m < 11 && doy >= MONTH_START[m + 1]) m++;
-  return `${doy - MONTH_START[m] + 1} ${MONTHS[m]}`;
+  return `${doy - MONTH_START[m] + 1} ${monthNames()[m]}`;
 };
 
 export type YearsCtx = { unit: Unit; type?: number; label?: string };
@@ -47,14 +47,14 @@ export function mountYearOverlay(el: HTMLElement, years: YearSeries[], ctx: Year
           swatch: "line" as const,
           color: y === current ? "var(--chart-trend)" : "var(--chart-compare)",
           label: String(y.year),
-          value: v === null ? "no reading" : fmt(v),
+          value: v === null ? i18n("chart.noReading") : fmt(v),
         };
       }),
       notes: [],
     };
   };
   return setupChart(el, {
-    label: ctx.label ?? "Year by year comparison",
+    label: ctx.label ?? i18n("chart.yearsLabel"),
     responsive: true,
     count: () => stops.length,
     tip,
@@ -75,7 +75,7 @@ export function mountYearOverlay(el: HTMLElement, years: YearSeries[], ctx: Year
           type: "value", min: 1, max: 366, axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
           axisLabel: {
             customValues: MONTH_START, hideOverlap: true, fontSize: 12, color: theme.axis, margin: 10,
-            formatter: (v: number) => MONTHS[MONTH_START.indexOf(v)] ?? "",
+            formatter: (v: number) => monthNames()[MONTH_START.indexOf(v)] ?? "",
           },
           axisPointer: { type: "line", snap: false, label: { show: false }, lineStyle: { color: theme.crosshair, width: 1 } },
         },

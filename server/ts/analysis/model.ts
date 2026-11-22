@@ -1,4 +1,6 @@
 /** Builds the UserAnalysis / DashboardSummary payloads (WP-07). Pure: `now` is a parameter. */
+import { t } from "../i18n/index.ts";
+import { specLabel } from "./labels.ts";
 import { MORNING, MIN_READINGS, weighHabits } from "../habits.ts";
 import {
   bmiCategory, bmiSeries, compositionMonthly, deriveComposition, ffmi, fmi, recomposition,
@@ -9,6 +11,7 @@ import {
   compareSeries, histogram, periodComparisons, timeOfDayEffect, weekdayEffect, yearOverlay,
 } from "./patterns.ts";
 import { findDuplicates, flagOutliers } from "./quality.ts";
+import { rateText } from "./rate_text.ts";
 import { records } from "./records.ts";
 import { bucketize, chooseAgg, dailySeries, readingPoints, yExtent } from "./series.ts";
 import { specFor } from "./spec.ts";
@@ -16,7 +19,7 @@ import { mean, stats } from "./stats.ts";
 import { summarize } from "./summary.ts";
 import { dayNoonUtc, daysBetween, localTime } from "./time.ts";
 import {
-  ewmaTrend, goalProgress, linearRate, projectGoal, rateText, trendAt, weeklyRateSeries,
+  ewmaTrend, goalProgress, linearRate, projectGoal, trendAt, weeklyRateSeries,
 } from "./trend.ts";
 import type {
   Agg, Bucket, CompositionAnalysis, DashboardSummary, DayPoint, Goal, MetricAnalysis, MetricSpec,
@@ -68,11 +71,11 @@ const inRange = <T extends { t: number }>(list: T[], from: number, to: number): 
 const dayLabel = (day: string) => formatDate(dayNoonUtc(day), "UTC", "medium");
 
 function rangePhrase(key: RangeKey | "custom"): string {
-  return key === "30d" ? "last 30 days" : key === "90d" ? "last 90 days" : key === "1y" ? "last year"
-    : key === "all" ? "all time" : "selected period";
+  return t(key === "30d" ? "an.rangeLast30" : key === "90d" ? "an.rangeLast90" : key === "1y" ? "an.rangeLastYear"
+    : key === "all" ? "an.rangeAll" : "an.rangeSelected");
 }
-const AGG_PHRASE: Record<Agg, string> = {
-  raw: "individual readings", daily: "daily values", weekly: "weekly averages", monthly: "monthly averages",
+const AGG_PHRASE: Record<Agg, () => string> = {
+  raw: () => t("an.aggRaw"), daily: () => t("an.aggDaily"), weekly: () => t("an.aggWeekly"), monthly: () => t("an.aggMonthly"),
 };
 
 type Ctx = {
@@ -86,7 +89,7 @@ function buildMetric(
   opts: { label?: string; primary?: boolean; goalKg?: number | null; allLod?: boolean; tableRows?: number },
 ): MetricAnalysis {
   const { spec, type } = s;
-  const label = opts.label ?? spec.label;
+  const label = opts.label ?? specLabel(spec);
   const dailyVis = inRange(s.daily, ctx.from, ctx.to);
   const trendVis = inRange(s.trend, ctx.from, ctx.to);
   const byId = new Map<number, Reading>();
@@ -129,7 +132,7 @@ function buildMetric(
     if (series.length >= 2)
       compare = {
         mode: ctx.compare, series,
-        label: ctx.compare === "yoy" ? "Same period last year" : "Previous period",
+        label: t(ctx.compare === "yoy" ? "an.compare.yoy" : "an.compare.prev"),
       };
   }
 
@@ -172,7 +175,7 @@ function buildTable(
 ): MetricAnalysis["table"] {
   if (agg === "raw" && lod.raw) {
     return {
-      headers: ["Date", "Time", label, "Trend"],
+      headers: [t("an.th.date"), t("an.th.time"), label, t("an.th.trend")],
       rows: lod.raw.slice(-limit).reverse().map((p) => {
         const zone = byId.get(p.id)?.zone ?? ctx.zone;
         return [formatDate(p.t, zone, "medium"), formatDate(p.t, zone, "time"), fmt(p.v), tr(p.t)];
@@ -182,34 +185,36 @@ function buildTable(
   if (agg === "weekly" || agg === "monthly") {
     const list = agg === "weekly" ? lod.weekly : lod.monthly;
     return {
-      headers: [agg === "weekly" ? "Week of" : "Month", `${label} (mean)`, "Range", "Weigh-in days"],
+      headers: [t(agg === "weekly" ? "an.th.weekOf" : "an.th.month"), t("an.th.mean", { label }), t("an.th.range"), t("an.th.weighInDays")],
       rows: list.slice(-limit).reverse().map((b) => [
         agg === "weekly" ? formatDate(b.start, "UTC", "medium") : formatDate(b.t, "UTC", "month"),
-        fmt(b.mean), `${fmt(b.min)} to ${fmt(b.max)}`, String(b.days),
+        fmt(b.mean), t("an.rangeTo", { from: fmt(b.min), to: fmt(b.max) }), String(b.days),
       ]),
     };
   }
   return {
-    headers: ["Date", label, "Trend", "Readings"],
+    headers: [t("an.th.date"), label, t("an.th.trend"), t("an.th.readings")],
     rows: lod.dailyVis.slice(-limit).reverse().map((d) => [dayLabel(d.day), fmt(d.v), tr(d.t), String(d.n)]),
   };
 }
 
 /** One-sentence chart description for aria-describedby. */
 function describe(m: MetricAnalysis, ctx: Ctx, fmt: (v: number) => string): string {
-  const head = `${m.label}, ${rangePhrase(ctx.key)}, ${AGG_PHRASE[m.defaultAgg]}${m.trend.length ? " with trend" : ""}.`;
+  const head = t("an.describe.head", {
+    label: m.label, range: rangePhrase(ctx.key), agg: AGG_PHRASE[m.defaultAgg](), trend: m.trend.length ? t("an.describe.withTrend") : "",
+  });
   const st = m.stats;
-  if (!st || !m.lod.daily.length) return `${head} No data in this period.`;
-  const short = (t: number) => formatDate(t, "UTC", "short");
-  if (m.lod.daily.length === 1) return `${head} One value, ${fmt(st.latest.v)} on ${short(st.latest.t)}.`;
+  if (!st || !m.lod.daily.length) return t("an.describe.none", { head });
+  const short = (ts: number) => formatDate(ts, "UTC", "short");
+  if (m.lod.daily.length === 1) return t("an.describe.one", { head, value: fmt(st.latest.v), date: short(st.latest.t) });
   const parts: string[] = [];
   if (m.trend.length >= 2 && st.changeTrend !== null) {
     const a = m.trend[0].v;
     const b = m.trend[m.trend.length - 1].v;
     const tiny = Math.abs(st.changeTrend) < 0.05 * (specFor(m.type)?.minSpan ?? 1);
-    parts.push(tiny ? `Trend was stable at about ${fmt(b)}.` : `Trend ${st.changeTrend < 0 ? "fell" : "rose"} from ${fmt(a)} to ${fmt(b)}.`);
+    parts.push(tiny ? t("an.describe.stable", { value: fmt(b) }) : t(st.changeTrend < 0 ? "an.describe.fell" : "an.describe.rose", { from: fmt(a), to: fmt(b) }));
   }
-  parts.push(`Lowest ${fmt(st.min.v)} on ${short(st.min.t)}, highest ${fmt(st.max.v)} on ${short(st.max.t)}.`);
+  parts.push(t("an.describe.minmax", { min: fmt(st.min.v), minDate: short(st.min.t), max: fmt(st.max.v), maxDate: short(st.max.t) }));
   return `${head} ${parts.join(" ")}`;
 }
 
@@ -260,7 +265,7 @@ export function buildUserAnalysis(input: AnalysisInput): UserAnalysis {
         type: -1, spec: bmiSpec, readings: [], flags: new Map(), daily: bmiDaily,
         trend: ewmaTrend(bmiDaily, bmiSpec),
       };
-      const series = buildMetric(s, ctx, { label: "BMI", allLod: true, tableRows: 60 });
+      const series = buildMetric(s, ctx, { label: t("an.bmi"), allLod: true, tableRows: 60 });
       const latest = series.trend.length ? series.trend[series.trend.length - 1].v : series.stats?.latest.v;
       if (latest !== undefined && series.lod.daily.length)
         bmi = { series, latest, category: bmiCategory(latest, user.ageYears) };
@@ -271,9 +276,9 @@ export function buildUserAnalysis(input: AnalysisInput): UserAnalysis {
   const sFatMass = get(8);
   const sLean = get(5);
   const visible = (s: Series | null) => (s && s.daily.some((d) => d.t >= ctx.from && d.t <= ctx.to) ? s : null);
-  const fatMass = visible(sFatMass) && buildMetric(sFatMass!, ctx, { label: "Fat mass", tableRows: 60 });
-  const leanMass = visible(sLean) && buildMetric(sLean!, ctx, { label: "Lean mass", tableRows: 60 });
-  const fatPct = visible(sFat) && buildMetric(sFat!, ctx, { label: "Body fat", tableRows: 60 });
+  const fatMass = visible(sFatMass) && buildMetric(sFatMass!, ctx, { label: t("an.fatMass"), tableRows: 60 });
+  const leanMass = visible(sLean) && buildMetric(sLean!, ctx, { label: t("an.leanMass"), tableRows: 60 });
+  const fatPct = visible(sFat) && buildMetric(sFat!, ctx, { label: t("an.bodyFat"), tableRows: 60 });
 
   let composition: CompositionAnalysis | null = null;
   if (fatMass || leanMass || fatPct) {
@@ -363,7 +368,7 @@ export function buildUserAnalysis(input: AnalysisInput): UserAnalysis {
     const outliers: QualityReport["outliers"] = [];
     for (const type of [...types].sort((a, b) => a - b)) {
       const s = get(type);
-      if (s && s.flags.size > 0) outliers.push({ type, label: s.spec.label, count: s.flags.size });
+      if (s && s.flags.size > 0) outliers.push({ type, label: specLabel(s.spec), count: s.flags.size });
     }
     const gaps: QualityReport["gaps"] = [];
     for (let i = 1; i < clean.length; i++) {
@@ -395,10 +400,10 @@ export function buildUserAnalysis(input: AnalysisInput): UserAnalysis {
   return analysis;
 }
 
-const CHIPS: { id: DashboardSummary["chips"][number]["id"]; type: number; label: string }[] = [
-  { id: "fatPct", type: 6, label: "Body fat" },
-  { id: "fatMass", type: 8, label: "Fat mass" },
-  { id: "muscle", type: 76, label: "Muscle mass" },
+const CHIPS: { id: DashboardSummary["chips"][number]["id"]; type: number }[] = [
+  { id: "fatPct", type: 6 },
+  { id: "fatMass", type: 8 },
+  { id: "muscle", type: 76 },
 ];
 
 export function buildDashboardSummary(input: {
@@ -432,9 +437,9 @@ export function buildDashboardSummary(input: {
   const progress = goal ? goalProgress(trendNow, goal) : null;
   const projection = goal ? projectGoal(trendNow, rate, goal, now) : null;
 
-  let text = rate ? rateText(rate, unit) : "Not enough recent data";
+  let text = rate ? rateText(rate, unit) : t("an.notEnoughRecent");
   if (goal && projection?.status === "on-track" && projection.date)
-    text += `, goal ${formatMass(goal.kg, unit, { decimals: 1 })} around ${formatDate(dayNoonUtc(projection.date), "UTC", "month")}`;
+    text += t("an.goalAround", { goal: formatMass(goal.kg, unit, { decimals: 1 }), date: formatDate(dayNoonUtc(projection.date), "UTC", "month") });
 
   const chips: DashboardSummary["chips"] = [];
   const addChip = (id: DashboardSummary["chips"][number]["id"], label: string, unit_: string, type: number | null, daily: DayPoint[]) => {
@@ -448,11 +453,11 @@ export function buildDashboardSummary(input: {
   const derived = deriveComposition(clean);
   for (const c of CHIPS) {
     const s = populated(makeSeries(COMPOSITION_TYPES.has(c.type) ? derived : clean, c.type, false));
-    if (s) addChip(c.id, c.label, specFor(c.type)!.unit, c.type, s.daily);
+    if (s) addChip(c.id, specLabel(specFor(c.type)!), specFor(c.type)!.unit, c.type, s.daily);
   }
   if (weightS && user.heightCm) {
     const b = bmiSeries(weightS.daily, user.heightCm, user.ageYears ?? null);
-    if (b?.length) addChip("bmi", "BMI", "", null, b);
+    if (b?.length) addChip("bmi", t("an.bmi"), "", null, b);
   }
 
   const weighings = clean.filter((r) => r.values[1] !== undefined);

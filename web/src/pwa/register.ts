@@ -1,4 +1,5 @@
 import { toast } from "../enhance/copy.ts";
+import { t as i18n } from "../i18n/index.ts";
 
 interface InstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -26,11 +27,11 @@ function offerUpdate(reg: ServiceWorkerRegistration): void {
   t.className = "toast toast-info pwa-update";
   t.dataset.pwaUpdate = "";
   const text = document.createElement("span");
-  text.textContent = "Update available";
+  text.textContent = i18n("pwa.updateAvailable");
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "btn btn-primary btn-sm";
-  btn.textContent = "Reload";
+  btn.textContent = i18n("pwa.reload");
   btn.addEventListener("click", () => {
     navigator.serviceWorker.addEventListener("controllerchange", () => location.reload(), { once: true });
     reg.waiting?.postMessage({ type: "SKIP_WAITING" });
@@ -69,7 +70,7 @@ function installButton(): void {
     button = document.createElement("button");
     button.type = "button";
     button.className = "btn btn-ghost btn-sm pwa-install";
-    button.textContent = "Install app";
+    button.textContent = i18n("pwa.install");
     button.addEventListener("click", async () => {
       const prompt = deferred;
       deferred = null;
@@ -84,7 +85,7 @@ function installButton(): void {
   window.addEventListener("appinstalled", () => {
     button?.remove();
     button = null;
-    toast("App installed");
+    toast(i18n("pwa.installed"));
   });
 }
 

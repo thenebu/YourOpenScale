@@ -1,4 +1,5 @@
 import type { Point } from "./analysis/types.ts";
+import { has, t } from "./i18n/index.ts";
 /** Known public Withings metric IDs. Unknown IDs remain available as raw measures.
  * Raw measures retain the exact wire integer/exponent representation; named API
  * values are JSON numbers so clients need no locale-dependent text parsing.
@@ -44,6 +45,11 @@ export const METRICS = [
   },
 ] as const;
 export type Metric = (typeof METRICS)[number];
+/** Display label of a metric in the current UI language (the API keeps the English `label`). */
+export function metricLabelText(type: number): string {
+  const key = `metric.${type}`;
+  return has(key) ? t(key) : (METRICS.find((m) => m.type === type)?.label ?? t("metric.1"));
+}
 export type Measure = {
   type: number;
   value: number;

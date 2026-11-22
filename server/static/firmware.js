@@ -6,6 +6,11 @@
   if (!root) return;
   const $ = (id) => document.getElementById(id);
   const csrf = root.dataset.csrf;
+  // Server-translated labels (data-i18n JSON); the English text is the fallback.
+  let I18N = {};
+  try { I18N = JSON.parse(root.dataset.i18n || "{}"); } catch { /* English */ }
+  const tr = (key, fallback, vars = {}) =>
+    (I18N[key] ?? fallback).replace(/\{(\w+)\}/g, (_, name) => (name in vars ? vars[name] : `{${name}}`));
   const localRosterModels = new Set((root.dataset.localRosterModels || "").split(","));
   let socket,
     clientId,
@@ -196,14 +201,14 @@
           ? "The Scale Did Not Provide The Secret Required For This Lookup"
           : "";
     $("connection-state").textContent = linked
-      ? `Connected: ${unsupported ? "Unrecognised Scale" : label(device?.model || $("scale-model").value)}${device ? "" : " · Identification Required"}`
-      : "Disconnected";
+      ? `${tr("connected", "Connected: {model}", { model: unsupported ? tr("unrecognised", "Unrecognised Scale") : label(device?.model || $("scale-model").value) })}${device ? "" : tr("idRequired", " · Identification Required")}`
+      : tr("disconnected", "Disconnected");
     $("generate-firmware").textContent =
-      `Generate Firmware For ${label(model())}`;
+      tr("generate", "Generate Firmware For {model}", { model: label(model()) });
     const limit = caps.hostnameMaxBytes || (CLASSIC.has(model()) ? 59 : 48);
     $("server-host").maxLength = limit;
     $("host-limits").textContent =
-      `Hostname Or IPv4 Address · Maximum ${limit} ASCII Bytes · No Scheme, Path Or Port`;
+      tr("hostLimits", "Hostname Or IPv4 Address · Maximum {limit} ASCII Bytes · No Scheme, Path Or Port", { limit });
     const transports =
       caps.serverTransports ||
       (CLASSIC.has(model()) ? ["http"] : ["http", "https"]);
@@ -216,8 +221,8 @@
     );
     $("use-this-host").disabled = loopback;
     $("use-this-host").textContent = loopback
-      ? "Enter This Computer’s LAN Address"
-      : `Use ${location.hostname}`;
+      ? tr("lanAddress", "Enter This Computer’s LAN Address")
+      : tr("useHost", "Use {host}", { host: location.hostname });
   }
   function renderIdentity() {
     const target = $("device-identity");
@@ -334,7 +339,7 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "text-button";
-      button.textContent = "Connect";
+      button.textContent = tr("connectButton", "Connect");
       button.dataset.deviceId = candidate.deviceId;
       button.disabled = !canConnect(candidate);
       button.title = scanInProgress
@@ -449,8 +454,8 @@
     $("bridge-online").hidden = !connected && !updating;
     $("bridge-connection").classList.toggle("is-offline", !connected);
     $("bridge-status-text").textContent = connected
-      ? `Python Bridge Connected From: ${ip || "Unknown"}${snapshot.simulated ? " · DEMONSTRATION — NO HARDWARE" : ""}`
-      : `Python Bridge Not Connected${interrupted ? " · Reconnecting To Server" : ""}`;
+      ? `${tr("bridgeOn", "Python Bridge Connected From: {ip}", { ip: ip || tr("unknown", "Unknown") })}${snapshot.simulated ? tr("demo", " · DEMONSTRATION — NO HARDWARE") : ""}`
+      : `${tr("bridgeOff", "Python Bridge Not Connected")}${interrupted ? tr("reconnecting", " · Reconnecting To Server") : ""}`;
     $("revoke-bridge").hidden = !connected && !paired;
     if (connected) {
       // The invitation is consumed. Discard its UI and any copy feedback so it
@@ -622,8 +627,8 @@
       $("device-label").value = `${label(d.model)} ${d.mac.slice(-4)}`;
       $("enroll-description").textContent =
         localRosterModels.has(snapshot.device?.model)
-          ? "Save this scale, then choose its local users in Scales → Edit Settings. Withings user import is unavailable for this model."
-          : "Save this scale and check Withings for existing users and settings. You choose which new users to import.";
+          ? tr("enrollLocal", "Save this scale, then choose its local users in Scales → Edit Settings. Withings user import is unavailable for this model.")
+          : tr("enrollText", "Save this scale and check Withings for existing users and settings. You choose which new users to import.");
       $("enroll-dialog").showModal();
     }
   }
@@ -885,8 +890,8 @@
       `${label(model())} ${snapshot.device.mac.slice(-4)}`;
     $("enroll-description").textContent =
       localRosterModels.has(snapshot.device?.model)
-        ? "Save this scale, then choose its local users in Scales → Edit Settings. Withings user import is unavailable for this model."
-        : "Save this scale and check Withings for existing users and settings. You choose which new users to import.";
+        ? tr("enrollLocal", "Save this scale, then choose its local users in Scales → Edit Settings. Withings user import is unavailable for this model.")
+        : tr("enrollText", "Save this scale and check Withings for existing users and settings. You choose which new users to import.");
     $("enroll-dialog").showModal();
   };
   $("confirm-enroll").onclick = () =>
@@ -998,13 +1003,13 @@
     if (!selectedArtifact) return;
     flashArtifact = selectedArtifact;
     $("flash-title").textContent = unknownFirmware(flashArtifact)
-      ? "Install Unknown Firmware?"
-      : "Install Firmware?";
+      ? tr("flashUnknown", "Install Unknown Firmware?")
+      : tr("flashTitle", "Install Firmware?");
     $("flash-warning").hidden = !unknownFirmware(flashArtifact);
     $("flash-warning").textContent = unknownFirmwareWarning;
     $("flash-summary").textContent =
       `${flashArtifact.filename} · v${flashArtifact.version} → ${label(model())} · ${snapshot.device.mac}\nSHA-256: ${flashArtifact.sha256}`;
-    $("flash-prompt").textContent = `Type ${flashPhrase(flashArtifact)}`;
+    $("flash-prompt").textContent = tr("flashPrompt", "Type {phrase}", { phrase: flashPhrase(flashArtifact) });
     $("flash-confirmation").value = "";
     $("confirm-flash").disabled = true;
     $("flash-dialog").showModal();
