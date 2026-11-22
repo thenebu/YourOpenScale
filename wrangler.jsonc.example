@@ -3,6 +3,7 @@
   "name": "yourownweigh",
   "main": "server/cloudflare/worker_ts.ts",
   "compatibility_date": "2026-10-26",
+  "compatibility_flags": ["nodejs_als"],
   "assets": {
     "directory": "server/static",
     "binding": "ASSETS",

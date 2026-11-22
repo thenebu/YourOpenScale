@@ -6,6 +6,13 @@ All notable changes to YourOpenScale are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- German interface (informal "du") next to English. The language follows the `yos_lang` cookie, then the browser's Accept-Language, then English. An EN | DE switch sits in the footer (also on the sign-in and setup pages) and in Settings. Numbers, dates, chart tooltips, analysis sentences, flash messages and the offline page follow the language; CSV exports stay machine-readable.
+- Dev server forwards the language and theme cookies so the e2e suite can exercise both languages.
+
+### Known gaps
+- Status and error messages that firmware.js builds at runtime, and technical validation errors for scale captures, stay English.
+
 ## [1.0.0] - 2026-11-22
 
 First release of YourOpenScale, a fork of YourOwnWeigh by Tom Anthony (MIT).

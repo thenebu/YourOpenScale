@@ -330,7 +330,7 @@ export const de: Record<MessageKey, string> = {
   "ov.subAge": "{n} Jahre",
   "ov.subSince": "seit {month}",
   "ov.subWeighIns": "{n, plural, one {# Messung} other {# Messungen}}",
-  "ov.custom": "Eigener Zeitraum …",
+  "ov.custom": "Eigener …",
   "ov.from": "Von",
   "ov.to": "Bis",
   "ov.apply": "Übernehmen",

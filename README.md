@@ -120,6 +120,10 @@ npm run setup:local -- --scale-host YOUR_MAC_LAN_IP
 
 Run the server 24/7 on a NAS, VPS or Pi behind your own reverse proxy, which terminates TLS for one subdomain and forwards to the container (plain HTTP, one port). See [`docker/`](docker/README.md) for the compose file and setup.
 
+## Language
+
+The interface is available in English and German. It picks the language from the `yos_lang` cookie, otherwise from your browser's Accept-Language header, otherwise English. Switch with the EN | DE control in the footer or under Settings. Exports (CSV, backups) and the API are not translated.
+
 ## Install as app
 
 The dashboard is an installable web app (it needs HTTPS or `localhost`). In Chrome or Edge use the Install button in the address bar, or "Install app" in the page footer. On iOS Safari tap Share, then Add to Home Screen. Offline you only get a branded "You are offline" page: the service worker never caches pages, API responses or readings.
