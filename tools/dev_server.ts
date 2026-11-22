@@ -89,7 +89,7 @@ const server = createServer(async (req, res) => {
   const prefs = String(req.headers.cookie ?? "")
     .split(";")
     .map((part) => part.trim())
-    .filter((part) => /^(yos_lang|yow_theme)=/.test(part));
+    .filter((part) => /^(yos_lang|yow_theme|yos_datefmt|yos_timefmt)=/.test(part));
   const headers: Record<string, string> = { Cookie: [cookie, ...prefs].filter(Boolean).join("; ") };
   if (req.headers["accept-language"]) headers["Accept-Language"] = String(req.headers["accept-language"]);
   if (req.headers["content-type"]) headers["Content-Type"] = String(req.headers["content-type"]);
@@ -104,7 +104,7 @@ const server = createServer(async (req, res) => {
     }),
     env,
   );
-  res.writeHead(out.status, Object.fromEntries(out.headers));
+  res.writeHead(out.status, { ...Object.fromEntries(out.headers), "set-cookie": out.headers.getSetCookie() });
   res.end(Buffer.from(await out.arrayBuffer()));
 });
 server.on("upgrade", (req, socket, head) => {

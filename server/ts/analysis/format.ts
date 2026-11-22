@@ -1,10 +1,10 @@
 /** Display formatting (WP-05). Also imported by the web bundle: no node:* imports. */
-import { currentLocale, intlTag, type Locale } from "../i18n/locale.ts";
+import { currentDatePrefs, currentLocale, intlTag, type DateFormatPref, type Locale } from "../i18n/locale.ts";
 import { specFor } from "./spec.ts";
 import type { Unit } from "./types.ts";
 export { chooseAgg } from "./series.ts";
 
-export type DateStyle = "short" | "medium" | "long" | "time" | "month";
+export type DateStyle = "short" | "medium" | "long" | "time" | "month" | "day";
 
 const KG_TO_LB = 2.2046226218487757;
 const MINUS = "−";
@@ -107,7 +107,7 @@ export function formatRate(perWeekKg: number, unit: Unit): string {
 }
 
 const dateFormats = new Map<string, Intl.DateTimeFormat>();
-function dateFormat(zone: string, style: DateStyle): Intl.DateTimeFormat {
+function dateFormat(zone: string, style: DateStyle | "parts" | "weekday" | "weekdayShort"): Intl.DateTimeFormat {
   const locale = currentLocale();
   const key = `${locale}|${zone}|${style}`;
   let f = dateFormats.get(key);
@@ -117,23 +117,74 @@ function dateFormat(zone: string, style: DateStyle): Intl.DateTimeFormat {
       : style === "medium" ? { day: "numeric", month: "short", year: "numeric" }
       : style === "long" ? { weekday: "long", day: "numeric", month: "long", year: "numeric" }
       : style === "time" ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
+      : style === "day" ? { weekday: "short", day: "numeric", month: "short", year: "numeric" }
+      : style === "weekdayShort" ? { weekday: "short" }
+      : style === "weekday" ? { weekday: "long" }
+      : style === "parts" ? { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
       : { month: "short", year: "numeric" };
-    f = new Intl.DateTimeFormat(intlTag(locale), { ...options, timeZone: zone });
+    f = new Intl.DateTimeFormat(style === "parts" ? "en-GB" : intlTag(locale), { ...options, timeZone: zone });
     dateFormats.set(key, f);
   }
   return f;
 }
 
-/** t is epoch seconds; a missing or unknown zone means UTC. */
+type Parts = { y: string; m: string; d: string; h: number; min: string };
+function partsOf(t: number, zone: string): Parts {
+  const p: Record<string, string> = {};
+  for (const part of dateFormat(zone, "parts").formatToParts(new Date(t * 1000))) p[part.type] = part.value;
+  return { y: p.year, m: p.month, d: p.day, h: Number(p.hour) % 24, min: p.minute };
+}
+
+/** The date format in effect: an explicit preference, else the one that fits the language. */
+function effectiveDateFormat(): Exclude<DateFormatPref, "auto"> | "auto-en" {
+  const pref = currentDatePrefs().date;
+  if (pref !== "auto") return pref;
+  return currentLocale() === "de" ? "dmy-dot" : "auto-en";
+}
+
+function numericDate(f: Exclude<DateFormatPref, "auto">, style: "short" | "medium", p: Parts): string {
+  if (f === "dmy-dot") return style === "short" ? `${p.d}.${p.m}.` : `${p.d}.${p.m}.${p.y}`;
+  if (f === "ymd") return style === "short" ? `${p.m}-${p.d}` : `${p.y}-${p.m}-${p.d}`;
+  if (f === "mdy") return style === "short" ? `${p.m}/${p.d}` : `${p.m}/${p.d}/${p.y}`;
+  return style === "short" ? `${p.d}/${p.m}` : `${p.d}/${p.m}/${p.y}`;
+}
+
+function clock(p: Parts): string {
+  const pref = currentDatePrefs().time;
+  const twelve = pref === "12h";
+  if (!twelve) return `${String(p.h).padStart(2, "0")}:${p.min}`;
+  return `${p.h % 12 || 12}:${p.min} ${p.h < 12 ? "AM" : "PM"}`;
+}
+
+/** t is epoch seconds; a missing or unknown zone means UTC. Honours the date and time format preferences. */
 export function formatDate(t: number, zone: string | null | undefined, style: DateStyle): string {
-  let f: Intl.DateTimeFormat;
+  let z = zone || "UTC";
   try {
-    f = dateFormat(zone || "UTC", style);
+    dateFormat(z, "parts");
   } catch {
-    f = dateFormat("UTC", style);
+    z = "UTC";
   }
-  const text = f.format(new Date(t * 1000));
-  return style === "long" && currentLocale() === "en" ? text.replace(/^(\p{L}+),/u, "$1") : text;
+  if (style === "time") return clock(partsOf(t, z));
+  if (style === "month") return dateFormat(z, "month").format(new Date(t * 1000));
+  const eff = effectiveDateFormat();
+  if (style === "day") {
+    const date = new Date(t * 1000);
+    if (eff === "auto-en") return dateFormat(z, "day").format(date).replace(/^(\p{L}+) /u, "$1, ");
+    return `${dateFormat(z, "weekdayShort").format(date)}, ${numericDate(eff, "medium", partsOf(t, z))}`;
+  }
+  if (eff === "auto-en" || (style === "long" && currentDatePrefs().date === "auto")) {
+    const text = dateFormat(z, style).format(new Date(t * 1000));
+    return style === "long" && currentLocale() === "en" ? text.replace(/^(\p{L}+),/u, "$1") : text;
+  }
+  const numeric = numericDate(eff, style === "short" ? "short" : "medium", partsOf(t, z));
+  if (style !== "long") return numeric;
+  const weekday = dateFormat(z, "weekday").format(new Date(t * 1000));
+  return currentLocale() === "de" ? `${weekday}, ${numeric}` : `${weekday} ${numeric}`;
+}
+
+/** Date and clock time together, e.g. "22.11.2026 14:35". */
+export function formatDateTime(t: number, zone: string | null | undefined): string {
+  return `${formatDate(t, zone, "medium")} ${formatDate(t, zone, "time")}`;
 }
 
 export function relativeDays(n: number): string {

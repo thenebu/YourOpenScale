@@ -8,8 +8,8 @@ import {
 import { activeUsers, countUnassigned, loadReadings } from "./data/readings_query.ts";
 import { flagOutliers } from "./analysis/quality.ts";
 import { handleForkRoute } from "./routes/index.ts";
-import { negotiateLocale, t, withLocale } from "./i18n/index.ts";
-import { themeFromCookie } from "./routes/util.ts";
+import { negotiateLocale, t, withDatePrefs, withLocale } from "./i18n/index.ts";
+import { datePrefsFromCookie, themeFromCookie } from "./routes/util.ts";
 import {
   commitWithingsImport,
   parseExportZip,
@@ -1593,7 +1593,7 @@ export function bodyLimit(path: string): number {
 
 /** Entry point: resolves the UI language once (cookie, Accept-Language, English) and runs the whole request in it. */
 export function handleApp(request: Request, env: AppEnv): Promise<Response> {
-  return withLocale(negotiateLocale(request), () => handleAppInner(request, env));
+  return withLocale(negotiateLocale(request), () => withDatePrefs(datePrefsFromCookie(request), () => handleAppInner(request, env)));
 }
 
 async function handleAppInner(
@@ -1688,7 +1688,8 @@ async function handleAppInner(
     path !== "/setup" &&
     path !== "/login" &&
     path !== "/theme" &&
-    path !== "/lang"
+    path !== "/lang" &&
+    path !== "/prefs"
   ) {
     return redirect(adminConfigured ? "/login" : "/setup");
   }

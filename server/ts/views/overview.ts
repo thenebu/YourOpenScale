@@ -61,7 +61,7 @@ function rangeLabel(a: UserAnalysis): string {
   if (k === "90d") return t("ov.range90d");
   if (k === "1y") return t("ov.range1y");
   if (k === "all") return t("ov.rangeLabelAll");
-  return t("an.rangeTo", { from: isoDay(a.range.from), to: isoDay(a.range.to) });
+  return t("an.rangeTo", { from: formatDate(a.range.from, "UTC", "medium"), to: formatDate(a.range.to, "UTC", "medium") });
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 /** Browser i18n: strings follow <html lang> (set by the server from the yos_lang cookie / Accept-Language). Tiny on purpose. */
-import { currentLocale, intlTag, interpolate } from "../../../server/ts/i18n/locale.ts";
+import { currentDatePrefs, currentLocale, intlTag, interpolate } from "../../../server/ts/i18n/locale.ts";
 import { de } from "./de.ts";
 import { en, type WebKey } from "./en.ts";
 
@@ -33,4 +33,15 @@ export function fixed(value: number, decimals = 1): string {
   let f = numbers.get(key);
   if (!f) numbers.set(key, (f = new Intl.NumberFormat(tag(), { minimumFractionDigits: decimals, maximumFractionDigits: decimals })));
   return f.format(Number.isFinite(value) ? value : 0);
+}
+
+/** ECharts time-axis template for day-level tick labels ("12 Nov", "12.11.", "11/12"), following the date format preference. */
+export function dayAxis(): string {
+  const pref = currentDatePrefs().date;
+  const f = pref === "auto" ? (currentLocale() === "de" ? "dmy-dot" : "auto") : pref;
+  if (f === "dmy-dot") return "{dd}.{MM}.";
+  if (f === "ymd") return "{MM}-{dd}";
+  if (f === "mdy") return "{MM}/{dd}";
+  if (f === "dmy-slash") return "{dd}/{MM}";
+  return "{d} {MMM}";
 }

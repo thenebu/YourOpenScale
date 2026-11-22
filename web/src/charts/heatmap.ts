@@ -3,6 +3,7 @@ import type { ECharts } from "./echarts.ts";
 import type { Mounted } from "./mount.ts";
 import { payloadOf, setupChart } from "./bars.ts";
 import type { Opt, Tip } from "./bars.ts";
+import { formatDate } from "@analysis/format.ts";
 import { monthNames, t as i18n, tag, weekdayNames } from "../i18n/index.ts";
 
 export type CalendarCell = { day: string; count: number };
@@ -11,9 +12,7 @@ const MAX_YEARS = 5;
 const LEFT = 36;
 const HEAD = 44; // year title + month labels
 
-const dayLabel = (day: string) =>
-  new Intl.DateTimeFormat(tag(), { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
-    .format(new Date(`${day}T12:00:00Z`)).replace(/^(\p{L}+) /u, "$1, ");
+const dayLabel = (day: string) => formatDate(Date.parse(`${day}T12:00:00Z`) / 1000, "UTC", "day");
 
 export function mountCalendarHeatmap(el: HTMLElement, cells: CalendarCell[], ctx: { label?: string } = {}): Mounted & { chart: ECharts } {
   const years = [...new Set(cells.map((c) => c.day.slice(0, 4)))].sort().slice(-MAX_YEARS);

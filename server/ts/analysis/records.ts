@@ -79,7 +79,7 @@ export function records(
   out.push(streak.longest
     ? {
       id: "longestStreak", label: tr("an.rec.longestStreak"), value: streak.longest.days,
-      t: dayNoonUtc(streak.longest.to), detail: `${streak.longest.from} to ${streak.longest.to}`,
+      t: dayNoonUtc(streak.longest.to), detail: tr("an.rangeTo", { from: when(dayNoonUtc(streak.longest.from)), to: when(dayNoonUtc(streak.longest.to)) }),
     }
     : none("longestStreak", tr("an.rec.longestStreak")));
 

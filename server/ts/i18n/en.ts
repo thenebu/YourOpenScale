@@ -829,6 +829,15 @@ export const en = {
   "msg.goalStartKgNumber": "Enter the start weight as a number",
   "msg.goalStartKgRange": "The start weight must be between 20 and 350 kg",
   "msg.goalSavedNoData": "Goal saved. There are no weigh-ins around the start date, so your reference weight is used as the start weight",
+  // date format (R4b)
+  "set.dateFormat": "Date format",
+  "set.timeFormat": "Time format",
+  "set.formatExample": "Example: {example}",
+  "set.formatHint": "Applies to dates and times shown in the app and its charts. Exports and links keep the ISO form (YYYY-MM-DD). Native date pickers follow your browser language.",
+  "set.applyFormat": "Apply formats",
+  "fmt.auto": "Automatic",
+  "fmt.24h": "24-hour",
+  "fmt.12h": "12-hour",
 } as const;
 
 export type MessageKey = keyof typeof en;

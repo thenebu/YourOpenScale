@@ -831,4 +831,13 @@ export const de: Record<MessageKey, string> = {
   "msg.goalStartKgNumber": "Gib das Startgewicht als Zahl ein",
   "msg.goalStartKgRange": "Das Startgewicht muss zwischen 20 und 350 kg liegen",
   "msg.goalSavedNoData": "Ziel gespeichert. Rund um das Startdatum gibt es keine Wägungen, daher wird dein Referenzgewicht als Startgewicht verwendet",
+  // date format (R4b)
+  "set.dateFormat": "Datumsformat",
+  "set.timeFormat": "Zeitformat",
+  "set.formatExample": "Beispiel: {example}",
+  "set.formatHint": "Gilt für Datum und Uhrzeit in der App und in den Diagrammen. Exporte und Links behalten die ISO-Form (JJJJ-MM-TT). Native Datumsauswahlen folgen der Browsersprache.",
+  "set.applyFormat": "Formate übernehmen",
+  "fmt.auto": "Automatisch",
+  "fmt.24h": "24 Stunden",
+  "fmt.12h": "12 Stunden",
 };

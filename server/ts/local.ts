@@ -204,7 +204,7 @@ export function localListener(
       const responseHeaders = new Headers(response.headers);
       if (secure)
         responseHeaders.set("Strict-Transport-Security", "max-age=31536000");
-      outgoing.writeHead(response.status, Object.fromEntries(responseHeaders));
+      outgoing.writeHead(response.status, { ...Object.fromEntries(responseHeaders), "set-cookie": responseHeaders.getSetCookie() });
       outgoing.end(Buffer.from(await response.arrayBuffer()));
     } catch (error) {
       console.error(

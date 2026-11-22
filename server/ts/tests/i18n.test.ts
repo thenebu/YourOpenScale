@@ -90,7 +90,7 @@ test("locale-aware number and date formatting", () => {
   assert.equal(withLocale("de", () => formatRate(-0.3, "kg")), "−0,3 kg/Woche");
   assert.equal(formatRate(-0.3, "kg"), "−0.3 kg/week");
   assert.match(withLocale("de", () => formatDate(sample, "UTC", "long")), /^Donnerstag, 5\. November 2026$/);
-  assert.match(withLocale("de", () => formatDate(sample, "UTC", "short")), /^5\. Nov\.?$/);
+  assert.match(withLocale("de", () => formatDate(sample, "UTC", "short")), /^05\.11\.$/);
   assert.equal(formatDate(sample, "UTC", "short"), "5 Nov");
 });
 

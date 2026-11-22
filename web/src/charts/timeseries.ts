@@ -16,7 +16,7 @@ import { chooseLod, lowerBound, slice } from "./lod.ts";
 import type { Mounted } from "./mount.ts";
 import { baseOption, onThemeChange, prefersReducedMotion, readTheme } from "./theme.ts";
 import type { ChartTheme } from "./theme.ts";
-import { fixed, t as i18n, tag } from "../i18n/index.ts";
+import { dayAxis, fixed, t as i18n, tag } from "../i18n/index.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Opt = Record<string, any>;
@@ -126,15 +126,8 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
   };
 
   // ---- tooltip content ----
-  const longDate = (t: number) => {
-    const parts = new Intl.DateTimeFormat(tag(), {
-      weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: safeZone(ctx.zone),
-    }).format(new Date(t * 1000));
-    return parts.replace(/^(\p{L}+) /u, "$1, ");
-  };
-  const dayLabel = (day: string) =>
-    new Intl.DateTimeFormat(tag(), { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
-      .format(new Date(`${day}T12:00:00Z`)).replace(/^(\p{L}+) /u, "$1, ");
+  const longDate = (t: number) => formatDate(t, safeZone(ctx.zone), "day");
+  const dayLabel = (day: string) => formatDate(Date.parse(`${day}T12:00:00Z`) / 1000, "UTC", "day");
 
   type Tip = { title: string; rows: { swatch: "dot" | "line" | "none"; color: string; label: string; value: string }[]; notes: string[]; warn: string | null };
   const tipFor = (list: NavPoint[], i: number): Tip => {
@@ -364,7 +357,7 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
       axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
       axisLabel: {
         hideOverlap: true, fontSize: 12, color: theme.axis, margin: 10,
-        formatter: { year: "{MMM} '{yy}", month: "{MMM} '{yy}", day: "{d} {MMM}", hour: "{HH}:{mm}", minute: "{HH}:{mm}", second: "{HH}:{mm}:{ss}", millisecond: "{HH}:{mm}:{ss}", none: "{d} {MMM}" },
+        formatter: { year: "{MMM} '{yy}", month: "{MMM} '{yy}", day: dayAxis(), hour: "{HH}:{mm}", minute: "{HH}:{mm}", second: "{HH}:{mm}:{ss}", millisecond: "{HH}:{mm}:{ss}", none: dayAxis() },
       },
       axisPointer: { type: "line", snap: true, label: { show: false }, lineStyle: { color: theme.crosshair, width: 1 } },
     },
