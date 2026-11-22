@@ -10,7 +10,10 @@ export function safeBack(value: string | null | undefined, origin: string): stri
     const target = new URL(value, origin);
     if (target.origin !== origin) return "/";
     target.searchParams.delete("notice");
-    return target.pathname + target.search + target.hash;
+    const out = target.pathname + target.search + target.hash;
+    // new URL() normalises dot segments, so "/.//evil.com" becomes "//evil.com": re-check the result.
+    if (!out.startsWith("/") || out.startsWith("//") || out.startsWith("/\\")) return "/";
+    return out;
   } catch {
     return "/";
   }
