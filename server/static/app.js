@@ -97,33 +97,3 @@ document.addEventListener("change", (event) => {
   )
     event.target.form.requestSubmit();
 });
-
-// Chart readout: show the point nearest the pointer. Without JavaScript the
-// points keep their native <title> tooltips.
-document.querySelectorAll("[data-chart]").forEach((chart) => {
-  const readout = chart.querySelector(".chart-readout");
-  const dots = [...chart.querySelectorAll(".pt")];
-  if (!readout || !dots.length) return;
-  const idle = readout.innerHTML;
-  dots.forEach((dot) => dot.querySelector("title")?.remove());
-  let active = null;
-  const show = (dot) => {
-    active?.classList.remove("active");
-    active = dot;
-    if (dot) {
-      dot.classList.add("active");
-      readout.textContent = dot.dataset.label;
-    } else readout.innerHTML = idle;
-  };
-  chart.addEventListener("pointermove", (event) => {
-    let best = null;
-    let distance = Infinity;
-    for (const dot of dots) {
-      const box = dot.getBoundingClientRect();
-      const d = Math.abs(box.left + box.width / 2 - event.clientX);
-      if (d < distance) [best, distance] = [dot, d];
-    }
-    if (best !== active) show(best);
-  });
-  chart.addEventListener("pointerleave", () => show(null));
-});

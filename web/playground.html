@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chart playground</title>
+  <link rel="icon" href="data:,">
+  <!-- Dev only (npm run web:dev, open /assets/playground.html: the vite base is /assets/). Not part of the build. Tokens are copied from 01 §B1 so the page works before WP-03 lands. -->
+  <link rel="stylesheet" href="/src/styles/charts.css">
+  <style>
+    :root { color-scheme: light; --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --color-bg:#f4f7f7; --color-surface:#fff; --color-surface-raised:#fff; --color-surface-sunken:#eef3f4; --color-border:#dfe7e8;
+      --color-text:#172227; --color-text-muted:#4d5f64; --color-text-subtle:#5f7378; --color-accent:#087a76; --color-link:#0a6e6a;
+      --color-focus:#087a76; --color-warn:#9a5b00;
+      --chart-grid:#e6eced; --chart-axis:#5f7378; --chart-raw:#087a768c; --chart-trend:#087a76; --chart-band:#087a761f; --chart-goal:#9a5b00;
+      --chart-outlier:#b3261e; --chart-crosshair:#4d5f64; --chart-fat:#c4581b; --chart-lean:#2f6db5; --chart-muscle:#12896a;
+      --chart-water:#3a9bd5; --chart-bone:#8a6fb0; --chart-hr:#b4487f; --chart-compare:#8a9da1;
+      --chart-bmi-under:#e8f0fb; --chart-bmi-normal:#e3f4f1; --chart-bmi-over:#fff4e0; --chart-bmi-obese:#fdeceb; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark;
+      --color-bg:#0f1a1e; --color-surface:#16232a; --color-surface-raised:#1c2b33; --color-surface-sunken:#0b1417; --color-border:#263439;
+      --color-text:#e6eef0; --color-text-muted:#a9babe; --color-text-subtle:#8a9ea3; --color-accent:#5fd4c8; --color-link:#6fdacf;
+      --color-focus:#5fd4c8; --color-warn:#f2b45a;
+      --chart-grid:#223036; --chart-axis:#8a9ea3; --chart-raw:#5fd4c88c; --chart-trend:#5fd4c8; --chart-band:#5fd4c829; --chart-goal:#f2b45a;
+      --chart-outlier:#ff8a80; --chart-crosshair:#a9babe; --chart-compare:#5b7076;
+      --chart-bmi-under:#16263d; --chart-bmi-normal:#123b3a; --chart-bmi-over:#3a2a10; --chart-bmi-obese:#3d1a19; } }
+    :root[data-theme="dark"] { color-scheme: dark;
+      --color-bg:#0f1a1e; --color-surface:#16232a; --color-surface-raised:#1c2b33; --color-surface-sunken:#0b1417; --color-border:#263439;
+      --color-text:#e6eef0; --color-text-muted:#a9babe; --color-text-subtle:#8a9ea3; --color-accent:#5fd4c8; --color-link:#6fdacf;
+      --color-focus:#5fd4c8; --color-warn:#f2b45a;
+      --chart-grid:#223036; --chart-axis:#8a9ea3; --chart-raw:#5fd4c88c; --chart-trend:#5fd4c8; --chart-band:#5fd4c829; --chart-goal:#f2b45a;
+      --chart-outlier:#ff8a80; --chart-crosshair:#a9babe; --chart-compare:#5b7076;
+      --chart-bmi-under:#16263d; --chart-bmi-normal:#123b3a; --chart-bmi-over:#3a2a10; --chart-bmi-obese:#3d1a19; }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--color-bg); color: var(--color-text); font: 16px/1.5 var(--font-sans); }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+    h1 { font-size: 1.25rem; margin: 0; }
+    .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px; }
+    .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+    @media (min-width: 900px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+    .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .btn { font: inherit; font-size: 0.875rem; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); cursor: pointer; }
+    .btn-ghost { background: transparent; }
+    .btn-sm { padding: 4px 10px; font-size: 0.8125rem; }
+    .btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+    #stats { font: 12px/1.4 ui-monospace, monospace; color: var(--color-text-muted); margin: 0; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="bar">
+      <h1>Chart playground</h1>
+      <button class="btn btn-sm" data-theme-set="">Auto</button>
+      <button class="btn btn-sm" data-theme-set="light">Light</button>
+      <button class="btn btn-sm" data-theme-set="dark">Dark</button>
+    </header>
+
+    <figure class="chart-card card">
+      <h3 class="chart-title" id="t-weight">Weight</h3>
+      <p class="chart-summary" id="s-weight">Weight, all 900 days (synthetic), daily values with trend.</p>
+      <div class="chart-tools"></div>
+      <div class="chart" id="main" data-island="timeseries" data-payload="analysis" data-metric="weight" data-slider data-zone="Europe/Berlin">
+        <div class="chart-fallback">Loading chart…</div>
+      </div>
+      <ul class="chart-legend">
+        <li><span class="swatch" style="--swatch: var(--chart-raw)"></span>Readings</li>
+        <li><span class="swatch swatch--line"></span>Trend (smoothed, ~1-week memory)</li>
+        <li><span class="swatch swatch--line" style="--swatch: var(--chart-goal)"></span>Goal</li>
+      </ul>
+    </figure>
+
+    <div class="grid">
+      <figure class="chart-card card">
+        <h3 class="chart-title">BMI</h3>
+        <div class="chart" data-island="timeseries" data-payload="analysis" data-metric="bmi" data-compact><div class="chart-fallback">Loading chart…</div></div>
+      </figure>
+      <figure class="chart-card card">
+        <h3 class="chart-title">Body fat (%) with last year</h3>
+        <div class="chart" data-island="timeseries" data-payload="analysis" data-metric="fatPct" data-compact><div class="chart-fallback">Loading chart…</div></div>
+      </figure>
+      <figure class="chart-card card">
+        <h3 class="chart-title">Bone mass</h3>
+        <div class="chart" data-island="timeseries" data-payload="analysis" data-metric="bone_mass_kg" data-compact><div class="chart-fallback">Loading chart…</div></div>
+      </figure>
+    </div>
+    <p id="stats"></p>
+  </main>
+
+  <script type="module">
+    import "/src/charts/islands.ts";
+    import { mountIslands } from "/src/charts/mount.ts";
+
+    document.querySelectorAll("[data-theme-set]").forEach((b) => b.addEventListener("click", () => {
+      const v = b.getAttribute("data-theme-set");
+      if (v) document.documentElement.dataset.theme = v; else delete document.documentElement.dataset.theme;
+      window.dispatchEvent(new Event("yow:themechange"));
+    }));
+    const theme = new URLSearchParams(location.search).get("theme");
+    if (theme) document.documentElement.dataset.theme = theme;
+
+    const text = await (await fetch("/assets/fixtures/analysis.sample.json")).text();
+    const node = document.createElement("script");
+    node.type = "application/json";
+    node.id = "analysis";
+    node.textContent = text;
+    document.body.append(node);
+    mountIslands();
+
+    // Dev readout: SVG mark count and axis font size of the main chart.
+    const marks = () => document.querySelectorAll("#main svg :is(path,circle,rect,ellipse,line,polyline,polygon)").length;
+    const axisPx = () => { const t = document.querySelector("#main svg text"); return t ? getComputedStyle(t).fontSize : "n/a"; };
+    const out = document.getElementById("stats");
+    const tick = () => { out.textContent = `main chart: ${marks()} svg marks, axis text ${axisPx()}`; };
+    setInterval(tick, 500);
+  </script>
+</body>
+</html>
