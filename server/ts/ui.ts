@@ -130,6 +130,17 @@ function navMarkup(csrf: string, active: string, opts: LayoutOpts): string {
 }
 /* WP-16: PWA head tags (manifest, theme colours from tokens, apple tags). */
 const PWA_HEAD = `<link rel="icon" href="/icons/favicon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#1a1c2b" media="(prefers-color-scheme: dark)"><link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="YOS"><meta name="apple-mobile-web-app-status-bar-style" content="default">`;
+/** Same-origin relative path only (open-redirect guard); the one-shot `notice` flash param is dropped. */
+function safeBack(raw: string | undefined): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/";
+  const q = raw.indexOf("?");
+  if (q < 0) return raw;
+  const params = new URLSearchParams(raw.slice(q + 1));
+  params.delete("notice");
+  const rest = params.toString();
+  return rest ? `${raw.slice(0, q)}?${rest}` : raw.slice(0, q);
+}
+
 export function layout(
   title: string,
   body: string,
@@ -139,7 +150,7 @@ export function layout(
   active = "",
   opts: LayoutOpts = {},
 ): string {
-  const back = opts.back && opts.back.startsWith("/") && !opts.back.startsWith("//") ? opts.back : "/";
+  const back = safeBack(opts.back);
   const nav = loggedIn
     ? navMarkup(csrf, active, opts)
     : `<nav class="app-nav" aria-label="${e(t("nav.main"))}"><div class="app-nav-inner"><a class="brand" href="/" aria-label="YourOpenScale"><img src="/favicon.png" width="28" height="28" alt=""><strong class="brand-full">YourOpenScale</strong><strong class="brand-short">YOS</strong></a></div></nav>`;

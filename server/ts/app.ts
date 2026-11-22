@@ -1585,10 +1585,53 @@ async function integratedApi(request: Request, env: AppEnv): Promise<Response> {
 
 /** Largest accepted request body: backups 10 MiB, Withings export ZIPs 32 MiB (the
  * Health Mate export is ~10 MiB because of raw tracker CSVs), everything else 256 kB. */
+export const WITHINGS_IMPORT_LIMIT = 32 * 1024 * 1024;
+export const DEFAULT_BODY_LIMIT = 256000;
 export function bodyLimit(path: string): number {
   if (path === "/api/backup/import") return 10 * 1024 * 1024;
-  if (path === "/import/withings") return 32 * 1024 * 1024;
-  return 256000;
+  if (path === "/import/withings") return WITHINGS_IMPORT_LIMIT;
+  return DEFAULT_BODY_LIMIT;
+}
+
+/** Read-only session lookup (never creates a session): the valid admin session for the request cookie, or null. */
+async function adminSession(db: D1Database, request: Request): Promise<BrowserSession | null> {
+  const token = cookieValue(request);
+  if (!token) return null;
+  const found = await one<BrowserSession>(
+    db,
+    "SELECT * FROM admin_sessions WHERE token_hash=? AND expires_at>?",
+    await digest(token),
+    now(),
+  );
+  return found && (await authenticated(db, found)) ? found : null;
+}
+
+/** True when the request carries a valid admin session cookie (DB-backed). Used to gate large body limits before the body is read. */
+export async function hasAdminSession(db: D1Database, request: Request): Promise<boolean> {
+  return (await adminSession(db, request)) !== null;
+}
+
+/** Body limit for a request before its body is read: large limits only for authenticated admins. */
+export async function allowedBodyLimit(db: D1Database, request: Request): Promise<number> {
+  const path = new URL(request.url).pathname;
+  const limit = bodyLimit(path);
+  return limit > DEFAULT_BODY_LIMIT && (await hasAdminSession(db, request)) ? limit : DEFAULT_BODY_LIMIT;
+}
+
+/** 413 response: a translated styled page for an authenticated import request, plain text otherwise. */
+export function requestTooLarge(request: Request, env: AppEnv): Promise<Response> {
+  return withLocale(negotiateLocale(request), () => withDatePrefs(datePrefsFromCookie(request), async () => {
+    const path = new URL(request.url).pathname;
+    const session = path === "/import/withings" || path === "/api/backup/import" ? await adminSession(env.DB, request) : null;
+    if (!session) return new Response("Request too large", { status: 413 });
+    const limitMb = bodyLimit(path) / (1024 * 1024);
+    const title = t("page.importNotCompleted");
+    const back = path === "/import/withings" ? "/import/withings" : "/settings";
+    return html(
+      layout(title, `<section><h1>${escapeHtml(title)}</h1><p>${escapeHtml(t("msg.requestTooLarge", { limit: limitMb }))}</p><a href="${back}">${escapeHtml(t("page.back"))}</a></section>`, session.csrf, true, "", "", { theme: themeFromCookie(request), back }),
+      413,
+    );
+  }));
 }
 
 /** Entry point: resolves the UI language once (cookie, Accept-Language, English) and runs the whole request in it. */
@@ -1674,7 +1717,7 @@ async function handleAppInner(
     Number(request.headers.get("Content-Length")) >
       bodyLimit(path)
   ) {
-    return new Response("Request too large", { status: 413 });
+    return requestTooLarge(request, env);
   }
 
   if (["/api/bridge/exchange", "/api/bridge/socket"].includes(path)) {
@@ -1852,8 +1895,8 @@ async function handleAppInner(
         return new Response("Invalid CSRF token", { status: 403 });
       if (path === "/import/withings") {
         const file = form.get("export");
-        if (!(file instanceof File) || file.size > 64 * 1024 * 1024)
-          throw new Error(t("msg.chooseZip"));
+        if (!(file instanceof File) || file.size > WITHINGS_IMPORT_LIMIT)
+          throw new Error(t("msg.chooseZip", { limit: WITHINGS_IMPORT_LIMIT / (1024 * 1024) }));
         const parsed = await parseExportZip(
           new Uint8Array(await file.arrayBuffer()),
         );

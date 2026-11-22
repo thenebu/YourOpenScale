@@ -66,6 +66,10 @@ test("layout: theme attribute and footer links", () => {
   assert.match(h, /data-theme-set="light" aria-current="page">Light/);
   assert.match(h, /data-theme-set="dark">Dark/);
   assert.match(page({ back: "//evil.test" }), /back=%2F"/);
+  const q = page({ back: "/users/1/overview?range=30d&notice=Saved&x=a%20b" });
+  assert.match(q, /href="\/lang\?set=de&amp;back=%2Fusers%2F1%2Foverview%3Frange%3D30d%26x%3Da%2Bb"/);
+  assert.match(q, /href="\/theme\?set=dark&amp;back=%2Fusers%2F1%2Foverview%3Frange%3D30d%26x%3Da%2Bb"/);
+  assert.doesNotMatch(q, /Saved/);
   assert.match(h, /link-quiet" href="https:\/\/github\.com/);
 });
 
