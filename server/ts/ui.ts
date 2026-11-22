@@ -7,6 +7,7 @@ import type { StageMeta } from "./withings_import.ts";
 import { timeZoneSelect } from "./integrated_ui.ts";
 import { WEB_APP_VERSION } from "./version.ts";
 import { assetTags } from "./assets.ts";
+import { icon } from "./views/icons.ts";
 type Row = Record<string, any>;
 export const escapeHtml = (value: unknown): string =>
   String(value ?? "").replace(
@@ -90,7 +91,40 @@ export type LayoutOpts = {
   unassigned?: number;
   theme?: "light" | "dark" | null;
   entries?: ("app" | "charts")[];
+  /** Current path + query, used as the `back` target of the footer theme links. */
+  back?: string;
 };
+const SECONDARY_LINKS: [string, string][] = [
+  ["/users", "Users"],
+  ["/scales", "Scales"],
+  ["/sync", "Sync"],
+  ["/settings", "Settings"],
+  ["/firmware", "Firmware"],
+];
+function themeSwitch(current: "light" | "dark" | null, back: string): string {
+  const item = (value: string, label: string, on: boolean) =>
+    `<a href="/theme?set=${value}&amp;back=${encodeURIComponent(back)}" data-theme-set="${value}"${on ? ' aria-current="page"' : ""}>${label}</a>`;
+  return `<nav class="segmented" aria-label="Theme">${item("system", "System", !current)}${item("light", "Light", current === "light")}${item("dark", "Dark", current === "dark")}</nav>`;
+}
+function navMarkup(csrf: string, active: string, opts: LayoutOpts): string {
+  const link = (url: string, label: string, extra = "") =>
+    `<a class="nav-link" href="${url}"${active === url ? ' aria-current="page"' : ""}>${label}${extra}</a>`;
+  const badge = opts.unassigned && opts.unassigned > 0 ? ` <span class="badge badge-warn" title="Unassigned readings">${e(opts.unassigned)}<span class="visually-hidden"> unassigned</span></span>` : "";
+  const users = opts.users ?? [];
+  const people = users.length >= 2
+    ? `<details class="nav-dropdown"><summary class="nav-link"${active.startsWith("/users/") ? ' aria-current="page"' : ""}>People ${icon("chevron-down", { size: 14 })}</summary><div class="nav-popover">${users.map((u) => `<a href="/users/${e(u.id)}/overview">${e(u.name)}</a>`).join("")}</div></details>`
+    : users.length === 1
+      ? `<a class="nav-link" href="/users/${e(users[0].id)}/overview"${active.startsWith("/users/") ? ' aria-current="page"' : ""}>Overview</a>`
+      : "";
+  const sheetPeople = users.length >= 2
+    ? `<p class="nav-sheet-heading">People</p>${users.map((u) => `<a class="nav-link" href="/users/${e(u.id)}/overview">${e(u.name)}</a>`).join("")}`
+    : users.length === 1
+      ? `<a class="nav-link" href="/users/${e(users[0].id)}/overview">Overview</a>`
+      : "";
+  const signOut = (cls: string) => `<form action="/logout" method="post" class="${cls}">${hidden(csrf)}<button class="btn btn-ghost btn-sm" type="submit">Sign out</button></form>`;
+  const brand = `<a class="brand" href="/" aria-label="YourOwnWeigh"><img src="/favicon.png" width="28" height="28" alt=""><strong class="brand-full">YourOwnWeigh</strong><strong class="brand-short">YOW</strong></a>`;
+  return `<nav class="app-nav" aria-label="Main"><div class="app-nav-inner">${brand}<div class="nav-links">${link("/", "Dashboard")}${people}${link("/readings", "Readings", badge)}<span class="nav-sep" aria-hidden="true">·</span>${SECONDARY_LINKS.map(([u, l]) => link(u, l)).join("")}</div>${signOut("nav-signout")}<details class="nav-menu"><summary class="btn btn-ghost btn-icon" aria-label="Menu">${icon("menu", { size: 20 })}</summary><div class="nav-sheet">${link("/", "Dashboard")}${sheetPeople}${link("/readings", "Readings", badge)}<hr>${SECONDARY_LINKS.map(([u, l]) => link(u, l)).join("")}<hr>${signOut("nav-sheet-signout")}</div></details></div></nav>`;
+}
 export function layout(
   title: string,
   body: string,
@@ -100,30 +134,18 @@ export function layout(
   active = "",
   opts: LayoutOpts = {},
 ): string {
-  const links = [
-    ["/", "Dashboard"],
-    ["/readings", "Readings"],
-    ["/scales", "Scales"],
-    ["/users", "Users"],
-    ["/sync", "Sync"],
-    ["/settings", "Settings"],
-    ["/firmware", "Firmware Bridge"],
-  ];
+  const back = opts.back && opts.back.startsWith("/") && !opts.back.startsWith("//") ? opts.back : "/";
+  const nav = loggedIn
+    ? navMarkup(csrf, active, opts)
+    : `<nav class="app-nav" aria-label="Main"><div class="app-nav-inner"><a class="brand" href="/" aria-label="YourOwnWeigh"><img src="/favicon.png" width="28" height="28" alt=""><strong class="brand-full">YourOwnWeigh</strong><strong class="brand-short">YOW</strong></a></div></nav>`;
+  const flash = notice
+    ? `<div class="flash-wrap"><div class="flash callout callout-info" role="status">${icon("info", { size: 20 })}<div>${e(notice)}</div><button type="button" class="btn btn-ghost btn-icon btn-sm flash-dismiss" data-dismiss aria-label="Dismiss notice">${icon("x", { size: 16 })}</button></div></div>`
+    : "";
   return `<!doctype html><html lang="en"${opts.theme ? ` data-theme="${opts.theme}"` : ""}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${e(title)} · YourOwnWeigh</title><link rel="icon" href="/favicon.png" type="image/png">
-    <meta name="csrf-token" content="${e(csrf)}"><link rel="stylesheet" href="/app.css?v=${WEB_APP_VERSION}"><script src="/app.js?v=${WEB_APP_VERSION}" defer></script>${assetTags(opts.entries ?? ["app"])}</head><body>
-    <nav><a class="brand" href="/" aria-label="YourOwnWeigh"><img src="/favicon.png" width="36" height="36" alt=""><strong>YOW</strong></a>${
-      loggedIn
-        ? links
-            .map(
-              ([url, label]) =>
-                `<a href="${url}"${active === url ? ' aria-current="page"' : ""}>${label}</a>`,
-            )
-            .join("") +
-          `<form action="/logout" method="post">${hidden(csrf)}<button>Sign Out</button></form>`
-        : ""
-    }</nav>
-    ${notice ? `<p class="flash" role="status">${e(notice)}</p>` : ""}<main>${body}</main><footer class="site-footer"><span>YourOwnWeigh · Web App v${e(WEB_APP_VERSION)}</span><a href="https://github.com/TomAnthony/YourOwnWeigh" target="_blank" rel="noopener noreferrer">GitHub</a></footer></body></html>`;
+    <meta name="csrf-token" content="${e(csrf)}"><script src="/app.js?v=${WEB_APP_VERSION}" defer></script>${assetTags(opts.entries ?? ["app"])}</head><body>
+    ${nav}
+    ${flash}<main>${body}</main><footer class="site-footer"><span>YourOwnWeigh · Web App v${e(WEB_APP_VERSION)}</span><a class="link link-quiet" href="https://github.com/TomAnthony/YourOwnWeigh" target="_blank" rel="noopener noreferrer">GitHub</a>${themeSwitch(opts.theme ?? null, back)}</footer></body></html>`;
 }
 export function setupPage(
   csrf: string,
