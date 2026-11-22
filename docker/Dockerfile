@@ -1,18 +1,28 @@
 # YourOwnWeigh server image — one plain-HTTP listener, run behind your own
-# reverse proxy. Usually built in CI and pulled from GHCR; to build locally,
-# from the repo root:
-#   docker build -f docker/Dockerfile -t yow:local .
+# reverse proxy. Built by the owner on the deploy host (no GHCR); from the repo
+# root:
+#   docker build -f docker/Dockerfile -t yow:ui-$(date +%Y%m%d) .
 #
-# Runtime is just Node 24 + ws + Node built-ins (node:sqlite); no build step,
-# types are stripped at run time. The server listens on plain HTTP; your reverse
-# proxy terminates TLS and forwards to it (see README).
-FROM node:24-slim
+# Two stages: `web` builds the Vite bundle (dev dependencies, build time only);
+# `runtime` is Node 24 + ws + Node built-ins (node:sqlite), types stripped at
+# run time, plus the built web/dist. The server listens on plain HTTP; your
+# reverse proxy terminates TLS and forwards to it (see README).
+FROM node:24-slim AS web
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY web ./web
+COPY server/ts/analysis ./server/ts/analysis
+RUN npm run web:build
+
+FROM node:24-slim AS runtime
 
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY server ./server
 COPY connectors ./connectors
+COPY --from=web /app/web/dist ./web/dist
 
 # Run as the base image's unprivileged `node` user (uid 1000), never root
 # (server/ts/local.ts says so, and it avoids root-owned files in the bind mount).
@@ -29,7 +39,8 @@ USER node
 ENV YOW_DB_PATH=/data/yow.sqlite3 \
     YOW_PORT=8080 \
     YOW_LISTEN_HOST=0.0.0.0 \
-    YOW_TRUST_PROXY=1
+    YOW_TRUST_PROXY=1 \
+    YOW_WEB_DIST=/app/web/dist
 
 EXPOSE 8080
 CMD ["node", "--experimental-strip-types", "server/ts/local.ts"]
