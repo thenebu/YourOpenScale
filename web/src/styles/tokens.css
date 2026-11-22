@@ -1,1 +1,246 @@
-/* Owner: WP-03 (design tokens). */
+/* Owner: WP-03 (design tokens). Values follow local/ui-polish/01-design-system.md B1-B3.
+   tools/check_contrast.mjs parses the three colour blocks below; keep the pattern. */
+
+:root {
+  color-scheme: light;
+  --color-bg: #f4f7f7;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #eef3f4;
+  --color-border: #dfe7e8;
+  --color-border-strong: #7d9196;
+  --color-text: #172227;
+  --color-text-muted: #4d5f64;
+  --color-text-subtle: #5f7378;
+  --color-accent: #087a76;
+  --color-accent-hover: #0a625f;
+  --color-accent-active: #0d4f4d;
+  --color-on-accent: #ffffff;
+  --color-accent-soft: #e3f4f1;
+  --color-accent-soft-text: #0b6b55;
+  --color-link: #0a6e6a;
+  --color-focus: #087a76;
+  --color-good: #0b6b55;
+  --color-good-bg: #e3f4f1;
+  --color-warn: #9a5b00;
+  --color-warn-bg: #fff4e0;
+  --color-bad: #b3261e;
+  --color-bad-bg: #fdeceb;
+  --color-info: #2f5f9e;
+  --color-info-bg: #e8f0fb;
+
+  --chart-grid: #e6eced;
+  --chart-axis: #5f7378;
+  --chart-raw: #087a768c;
+  --chart-trend: #087a76;
+  --chart-band: #087a761f;
+  --chart-goal: #9a5b00;
+  --chart-outlier: #b3261e;
+  --chart-crosshair: #4d5f64;
+  --chart-fat: #c4581b;
+  --chart-lean: #2f6db5;
+  --chart-muscle: #12896a;
+  --chart-water: #3a9bd5;
+  --chart-bone: #8a6fb0;
+  --chart-hr: #b4487f;
+  --chart-compare: #8a9da1;
+  --chart-heat-0: #eef3f4;
+  --chart-heat-1: #c7e8e3;
+  --chart-heat-2: #8fd0c6;
+  --chart-heat-3: #3fb0a5;
+  --chart-heat-4: #087a76;
+  --chart-bmi-under: #e8f0fb;
+  --chart-bmi-normal: #e3f4f1;
+  --chart-bmi-over: #fff4e0;
+  --chart-bmi-obese: #fdeceb;
+
+  --shadow-1: 0 1px 2px #1622270f, 0 1px 1px #1622270a;
+  --shadow-2: 0 6px 16px #16222714;
+  --shadow-overlay: 0 24px 64px #1622273d;
+  --backdrop: #0f1a1eb3;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234d5f64' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-display-sm: 2rem;
+  --text-display: 2.75rem;
+  --leading-xs: 1rem;
+  --leading-sm: 1.25rem;
+  --leading-md: 1.5rem;
+  --leading-lg: 1.625rem;
+  --leading-xl: 1.75rem;
+  --leading-2xl: 2.125rem;
+  --leading-display-sm: 2.25rem;
+  --leading-display: 3rem;
+  --tracking-lg: -0.005em;
+  --tracking-xl: -0.01em;
+  --tracking-2xl: -0.015em;
+  --tracking-display-sm: -0.02em;
+  --tracking-display: -0.025em;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --page-max: 1200px;
+  --gutter: clamp(16px, 4vw, 32px);
+  /* Breakpoints (media queries cannot use custom properties): sm 600px, md 900px, lg 1200px. */
+
+  --z-nav: 50;
+  --z-popover: 60;
+  --z-toast: 100;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-bg: #0f1a1e;
+    --color-surface: #16232a;
+    --color-surface-raised: #1c2b33;
+    --color-surface-sunken: #0b1417;
+    --color-border: #263439;
+    --color-border-strong: #5b7076;
+    --color-text: #e6eef0;
+    --color-text-muted: #a9babe;
+    --color-text-subtle: #8a9ea3;
+    --color-accent: #5fd4c8;
+    --color-accent-hover: #86e0d6;
+    --color-accent-active: #a9ebe3;
+    --color-on-accent: #0f1a1e;
+    --color-accent-soft: #123b3a;
+    --color-accent-soft-text: #86e0d6;
+    --color-link: #6fdacf;
+    --color-focus: #5fd4c8;
+    --color-good: #5fd4c8;
+    --color-good-bg: #123b3a;
+    --color-warn: #f2b45a;
+    --color-warn-bg: #3a2a10;
+    --color-bad: #ff8a80;
+    --color-bad-bg: #3d1a19;
+    --color-info: #8fb8ef;
+    --color-info-bg: #16263d;
+
+    --chart-grid: #223036;
+    --chart-axis: #8a9ea3;
+    --chart-raw: #5fd4c88c;
+    --chart-trend: #5fd4c8;
+    --chart-band: #5fd4c829;
+    --chart-goal: #f2b45a;
+    --chart-outlier: #ff8a80;
+    --chart-crosshair: #a9babe;
+    --chart-fat: #f08a4b;
+    --chart-lean: #7fb0f0;
+    --chart-muscle: #4fc9a2;
+    --chart-water: #79c3ee;
+    --chart-bone: #b9a2dd;
+    --chart-hr: #e58bb8;
+    --chart-compare: #5b7076;
+    --chart-heat-0: #16232a;
+    --chart-heat-1: #134440;
+    --chart-heat-2: #17706a;
+    --chart-heat-3: #2fa59a;
+    --chart-heat-4: #5fd4c8;
+    --chart-bmi-under: #16263d;
+    --chart-bmi-normal: #123b3a;
+    --chart-bmi-over: #3a2a10;
+    --chart-bmi-obese: #3d1a19;
+
+    --shadow-1: 0 1px 2px #0000004d, 0 1px 1px #0000004d;
+    --shadow-2: 0 6px 16px #0000004d;
+    --shadow-overlay: 0 24px 64px #00000080;
+    --backdrop: #0f1a1eb3;
+    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a9babe' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #0f1a1e;
+  --color-surface: #16232a;
+  --color-surface-raised: #1c2b33;
+  --color-surface-sunken: #0b1417;
+  --color-border: #263439;
+  --color-border-strong: #5b7076;
+  --color-text: #e6eef0;
+  --color-text-muted: #a9babe;
+  --color-text-subtle: #8a9ea3;
+  --color-accent: #5fd4c8;
+  --color-accent-hover: #86e0d6;
+  --color-accent-active: #a9ebe3;
+  --color-on-accent: #0f1a1e;
+  --color-accent-soft: #123b3a;
+  --color-accent-soft-text: #86e0d6;
+  --color-link: #6fdacf;
+  --color-focus: #5fd4c8;
+  --color-good: #5fd4c8;
+  --color-good-bg: #123b3a;
+  --color-warn: #f2b45a;
+  --color-warn-bg: #3a2a10;
+  --color-bad: #ff8a80;
+  --color-bad-bg: #3d1a19;
+  --color-info: #8fb8ef;
+  --color-info-bg: #16263d;
+
+  --chart-grid: #223036;
+  --chart-axis: #8a9ea3;
+  --chart-raw: #5fd4c88c;
+  --chart-trend: #5fd4c8;
+  --chart-band: #5fd4c829;
+  --chart-goal: #f2b45a;
+  --chart-outlier: #ff8a80;
+  --chart-crosshair: #a9babe;
+  --chart-fat: #f08a4b;
+  --chart-lean: #7fb0f0;
+  --chart-muscle: #4fc9a2;
+  --chart-water: #79c3ee;
+  --chart-bone: #b9a2dd;
+  --chart-hr: #e58bb8;
+  --chart-compare: #5b7076;
+  --chart-heat-0: #16232a;
+  --chart-heat-1: #134440;
+  --chart-heat-2: #17706a;
+  --chart-heat-3: #2fa59a;
+  --chart-heat-4: #5fd4c8;
+  --chart-bmi-under: #16263d;
+  --chart-bmi-normal: #123b3a;
+  --chart-bmi-over: #3a2a10;
+  --chart-bmi-obese: #3d1a19;
+
+  --shadow-1: 0 1px 2px #0000004d, 0 1px 1px #0000004d;
+  --shadow-2: 0 6px 16px #0000004d;
+  --shadow-overlay: 0 24px 64px #00000080;
+  --backdrop: #0f1a1eb3;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a9babe' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0ms;
+    --dur-2: 0ms;
+    --dur-3: 0ms;
+  }
+}
