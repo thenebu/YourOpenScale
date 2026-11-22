@@ -521,7 +521,7 @@ test("assigning a WBS13 reading updates recognition on the next session without 
   }
 });
 
-test("dashboard metric form submissions preserve other users' current selections", async () => {
+test("dashboard composition chips link to the overview (WP-13: replaces the per-card tile selection)", async () => {
   const h = await harness();
   try {
     const sessionid = ((await (await h.open()).json()) as any).body.sessionid;
@@ -552,27 +552,13 @@ test("dashboard metric form submissions preserve other users' current selections
         200,
       );
     }
-    let html = await (await h.web("/")).text();
-    // Follow the rendered tile link, which must carry every other user's
-    // current selection, exactly as a browser would.
-    const choose = async (name: string, value: string) => {
-      const link = [...html.matchAll(/<a class="tile" href="([^"]+)"/g)]
-        .map((m) => m[1].replaceAll("&amp;", "&"))
-        .find((href) => new URL(href, "http://x").searchParams.get(name) === value);
-      assert.ok(link, `tile link for ${name}=${value}`);
-      const fields = new URL(link, "http://x").searchParams;
-      html = await (await h.web(link.split("#")[0])).text();
-      return fields;
-    };
-    await choose("metric_17", "11");
-    const second = await choose("metric_18", "8");
-    assert.equal(second.get("metric_17"), "11");
-    assert.match(html, /72 bpm/);
-    assert.match(html, /20\.00 kg/);
-    const third = await choose("metric_17", "1");
-    assert.equal(third.get("metric_18"), "8");
-    assert.match(html, /80\.00 kg/);
-    assert.match(html, /20\.00 kg/);
+    // WP-13: the per-card metric/range switches are gone. Composition chips link to the overview.
+    const html = await (await h.web("/")).text();
+    assert.doesNotMatch(html, /Heart rate/i); // heart rate is not a dashboard chip
+    assert.match(html, /href="\/users\/18\/overview\?metric=8#composition"/);
+    assert.match(html, /<data class="stat-value" value="20">20\.0/);
+    const overview = await (await h.web("/users/17/overview")).text();
+    assert.match(overview, /id="metric-11"/);
   } finally {
     h.cleanup();
   }
@@ -711,28 +697,33 @@ test("WBS13 authenticates, receives its local roster every session and stores mi
     ).json()) as any;
     assert.equal(health.reading, null);
     const html = await (await h.web("/")).text();
-    assert.match(html, /80\.00 kg/);
-    assert.match(html, />Heart Rate</);
+    assert.match(html, /value="80"/);
+    assert.match(html, /80\.0/);
+    // Heart rate is not a dashboard chip; it lives on the overview (see below).
     assert.doesNotMatch(html, /name="metric_18"/); // Sam has no readings, hence no tiles.
-    const heart = await (await h.web("/?metric_17=11")).text();
-    assert.match(heart, /72 bpm/);
+    // Legacy per-card params are ignored: 200 and the same page as "/".
+    const legacy = await h.web("/?metric_17=11");
+    assert.equal(legacy.status, 200);
+    const heart = await legacy.text();
+    assert.match(heart, /value="80"/);
     assert.doesNotMatch(heart, /(?<![\d.])0\.00 kg/);
     // Heart rate shows wherever a user has values, and only there.
-    assert.match(await (await h.web("/")).text(), /class="tile-label">Heart Rate/);
     const overview = await (await h.web("/users/17/overview?range=1y")).text();
-    assert.match(overview, /<h2>Heart Rate/);
-    assert.match(overview, /When You Weigh Yourself/);
-    assert.match(overview, /aria-label="Weigh-ins by hour of day"/);
-    assert.doesNotMatch(
-      await (await h.web("/users/18/overview")).text(),
-      /<h2>Heart Rate/,
-    );
+    assert.match(overview, /id="metric-11"/);
+    assert.match(overview, /id="metric-11"[\s\S]*?<data class="metric-latest" value="72">72/);
+    assert.match(overview, /<h3 class="chart-title"[^>]*>Heart rate/);
+    assert.match(overview, /id="habits"/);
+    // The plan named the figure "Weigh-ins by time of day"; the merged view titles it "Time of day" (WP-12) and describes it as weigh-ins by hour.
+    assert.match(overview, /id="chart-hours"[\s\S]*?<h3 class="chart-title"[^>]*>Time of day/);
+    assert.match(overview, /Weigh-ins by hour of the day/);
+    assert.doesNotMatch(await (await h.web("/users/18/overview")).text(), /id="metric-11"/);
     assert.equal((await h.web("/users/9999/overview")).status, 404);
-    // Range selection is per user and unknown values fall back to 90 days.
-    const ranged = await (await h.web("/?range_17=30d&range_18=bogus")).text();
-    assert.match(ranged, /range_17=30d[^"]*" aria-current="true">30 days/);
-    assert.match(ranged, /range_18=90d[^"]*" aria-current="true">90 days|No readings recorded yet/);
-    assert.match(ranged, /<svg viewBox="0 0 640 250" role="img" aria-label="Weight over the last 30 days"/);
+    // Range lives on the overview; unknown values fall back to 90 days.
+    const ranged = await (await h.web("/users/17/overview?range=30d")).text();
+    assert.match(ranged, /aria-current="page"[^>]*>30 d</);
+    assert.match(ranged, /"key":"30d"/);
+    const bogus = await (await h.web("/users/17/overview?range=bogus")).text();
+    assert.match(bogus, /aria-current="page"[^>]*>90 d</);
     assert.match(await (await h.web("/readings?metric=8")).text(), /20\.00 kg/);
     // More recent weight-only rows must not hide previously received metrics.
     for (let i = 0; i < 12; i++)
@@ -748,7 +739,7 @@ test("WBS13 authenticates, receives its local roster every session and stores mi
           ],
         }),
       });
-    assert.match(await (await h.web("/?metric_17=11")).text(), /72 bpm/);
+    assert.match(await (await h.web("/users/17/overview")).text(), /id="metric-11"/);
     assert.match(await (await h.web("/readings")).text(), />Heart Rate</);
     assert.doesNotMatch(
       await (await h.web("/users/18/readings")).text(),

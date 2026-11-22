@@ -4,6 +4,7 @@ import { initCopy } from "../enhance/copy.ts";
 import { initFlash } from "../enhance/flash.ts";
 import { initNav } from "../enhance/nav.ts";
 import { initSections } from "../enhance/sections.ts";
+import { initSubmitOnChange } from "../enhance/submit.ts";
 import { initTheme } from "../enhance/theme.ts";
 
 document.documentElement.classList.add("js");
@@ -12,3 +13,4 @@ initNav();
 initFlash();
 initCopy();
 initSections();
+initSubmitOnChange();

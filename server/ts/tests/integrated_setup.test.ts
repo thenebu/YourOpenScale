@@ -92,7 +92,9 @@ test("two-stage bootstrap, integrated navigation, automatic model-safe enrollmen
       303,
     );
     const dashboard = await page("/");
-    assert.match(dashboard, /Add Your First Scale/);
+    // WP-13: 02 section 4 replaced the empty state copy.
+    assert.match(dashboard, /Add your first person/);
+    assert.match(dashboard, /Connect a scale/);
     assert.doesNotMatch(dashboard, />Admin<|Device Config/);
     const scales = await page("/scales");
     assert.match(scales, /<h1>Scales<\/h1>/);

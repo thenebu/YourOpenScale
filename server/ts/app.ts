@@ -1,15 +1,13 @@
 /** One HTTP application for Cloudflare Workers and the local Node listener. */
 import {
   metricValue,
-  metricSeries,
   namedMetrics,
   observedMetrics,
   storedMeasures,
 } from "./metrics.ts";
-import type { Point } from "./charts.ts";
+import { activeUsers, countUnassigned } from "./data/readings_query.ts";
 import { handleForkRoute } from "./routes/index.ts";
 import { themeFromCookie } from "./routes/util.ts";
-import { weighHabits } from "./habits.ts";
 import {
   commitWithingsImport,
   parseExportZip,
@@ -37,15 +35,11 @@ import {
   screenIds,
 } from "./scale_api.ts";
 import {
-  DASHBOARD_METRICS,
-  RANGES,
-  dashboardPage,
   escapeHtml,
   layout,
   loginPage,
   readingsPage,
   setupPage,
-  userOverviewPage,
   withingsImportPage,
   withingsPreviewPage,
   userReadingsPage,
@@ -1614,7 +1608,12 @@ export async function handleApp(
       : json({ error: "Bridge is unavailable" }, 503);
   }
   const adminConfigured = !!(await setting(db, "admin_password"));
-  if (!cookieValue(request) && path !== "/setup" && path !== "/login") {
+  if (
+    !cookieValue(request) &&
+    path !== "/setup" &&
+    path !== "/login" &&
+    path !== "/theme"
+  ) {
     return redirect(adminConfigured ? "/login" : "/setup");
   }
   if (
@@ -1667,6 +1666,17 @@ export async function handleApp(
     }
   }
   const notice = (url.searchParams.get("notice") ?? "").slice(0, 250);
+  // Nav data (People dropdown, unassigned badge) is only needed for HTML pages.
+  const navData: LayoutOpts =
+    loggedIn &&
+    method === "GET" &&
+    !path.startsWith("/api/") &&
+    !path.endsWith("/export.csv")
+      ? {
+          users: await activeUsers(db),
+          unassigned: await countUnassigned(db),
+        }
+      : {};
   const page = (
     title: string,
     body: string,
@@ -1676,6 +1686,8 @@ export async function handleApp(
     html(
       layout(title, body, csrf, loggedIn, notice, active, {
         theme: themeFromCookie(request),
+        ...navData,
+        back: url.pathname + url.search,
         ...opts,
       }),
       200,
@@ -1888,54 +1900,6 @@ export async function handleApp(
   if (path === "/login")
     return loggedIn ? go("/") : page("Sign In", loginPage(csrf));
   if (!loggedIn) return go("/login");
-  if (path === "/") {
-    const users = await rows(
-      db,
-      "SELECT * FROM users WHERE active=1 ORDER BY id",
-    );
-    const cards = [];
-    const now = Math.floor(Date.now() / 1000);
-    for (const user of users) {
-      const metrics = await observedMetrics(db, user.id);
-      const metric =
-        metrics.find(
-          (m) => m.type === Number(url.searchParams.get(`metric_${user.id}`)),
-        )?.type ?? 1;
-      const range =
-        RANGES.find(
-          (r) => r.key === url.searchParams.get(`range_${user.id}`),
-        ) ?? RANGES[1];
-      const since = range.days ? now - range.days * 86400 : 0;
-      const series: Record<number, Point[]> = {};
-      for (const m of metrics.filter((v) => DASHBOARD_METRICS.includes(v.type)))
-        series[m.type] = await metricSeries(db, user.id, m.type, since);
-      // "All" starts at the first reading; fixed windows always show their full span.
-      const first = Math.min(
-        ...Object.values(series).map((s) => s[0]?.t ?? now),
-      );
-      cards.push({
-        user,
-        metrics,
-        metric,
-        range: range.key,
-        series,
-        from: since || Math.min(first, now - 86400),
-        to: now,
-        readings: await rows(
-          db,
-          `SELECT r.*,s.label AS scale_label FROM readings r JOIN scales s ON s.id=r.scale_id
-      WHERE r.user_id=? AND ${metric === 1 ? "r.weight_value IS NOT NULL" : "EXISTS (SELECT 1 FROM json_each(r.measures_json) m WHERE json_extract(m.value,'$.type')=?)"} ORDER BY ${readingOrder} LIMIT 5`,
-          user.id,
-          ...(metric === 1 ? [] : [metric]),
-        ),
-      });
-    }
-    return page(
-      "Dashboard",
-      dashboardPage(cards, (await setting(db, "display_weight_unit")) ?? "kg"),
-      "/",
-    );
-  }
   if (path === "/readings") {
     const metrics = await observedMetrics(db);
     const metric =
@@ -1969,45 +1933,6 @@ export async function handleApp(
   }
   if (path === "/import/withings")
     return page("Import Withings Data", withingsImportPage(csrf), "/users");
-  const overview = /^\/users\/(\d+)\/overview$/.exec(path);
-  if (overview) {
-    const id = Number(overview[1]);
-    const user = await one(db, "SELECT * FROM users WHERE id=?", id);
-    if (!user) return new Response("Not Found", { status: 404 });
-    const now = Math.floor(Date.now() / 1000);
-    const range =
-      RANGES.find((r) => r.key === url.searchParams.get("range")) ?? RANGES[1];
-    const since = range.days ? now - range.days * 86400 : 0;
-    const metrics = await observedMetrics(db, id);
-    const series: Record<number, Point[]> = {};
-    for (const m of metrics)
-      series[m.type] = await metricSeries(db, id, m.type, since);
-    const times = await rows<{ t: number; time_zone: string | null }>(
-      db,
-      `SELECT CASE WHEN r.time_quality='trusted' THEN r.meastime ELSE r.first_received_at END AS t, s.time_zone
-       FROM readings r JOIN scales s ON s.id=r.scale_id
-       WHERE r.user_id=? AND r.weight_value IS NOT NULL AND t>=?`,
-      id,
-      since,
-    );
-    const first = Math.min(...Object.values(series).map((s) => s[0]?.t ?? now));
-    return page(
-      `${user.name}`,
-      userOverviewPage({
-        user,
-        unit: (await setting(db, "display_weight_unit")) ?? "kg",
-        range: range.key,
-        metrics,
-        series,
-        from: since || Math.min(first, now - 86400),
-        to: now,
-        habits: weighHabits(
-          times.map((r) => ({ t: Number(r.t), zone: r.time_zone })),
-        ),
-      }),
-      "/",
-    );
-  }
   const userReadings = /^\/users\/(\d+)\/readings$/.exec(path);
   if (userReadings) {
     const id = Number(userReadings[1]);
