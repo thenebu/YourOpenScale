@@ -1,7 +1,7 @@
-# YourOwnWeigh server — plain HTTP behind your own TLS-terminating reverse proxy.
+# YourOpenScale server — plain HTTP behind your own TLS-terminating reverse proxy.
 services:
   yow:
-    image: ghcr.io/tomanthony/yourownweigh:latest
+    image: yos-local:latest   # build it yourself, see docker/FORK-DEPLOY.md
     # Or build locally instead of pulling:
     # build: { context: .., dockerfile: docker/Dockerfile }
     container_name: yourownweigh

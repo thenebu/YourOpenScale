@@ -8,7 +8,7 @@ bundle is built inside the image (`web` stage), so no local build step is needed
 Tag every deploy so rollback is a tag switch:
 
 ```sh
-docker build -f docker/Dockerfile -t yow:ui-$(date +%Y%m%d) .
+docker build -f docker/Dockerfile -t yos-local:ui-$(date +%Y%m%d) .
 ```
 
 ## Before deploy
@@ -28,7 +28,7 @@ keys `goal:<id>`, which older versions ignore.
 
 ## Deploy
 
-Set `image: yow:ui-<date>` in the compose file and run `docker compose up -d`.
+Set `image: yos-local:ui-<date>` in the compose file and run `docker compose up -d`.
 Add the `compress` middleware to the Traefik router for `waage.schuessler.cloud`
 (gzip for HTML, JSON, JS and CSS), for example:
 

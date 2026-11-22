@@ -93,12 +93,10 @@ export type LayoutOpts = {
   /** Current path + query, used as the `back` target of the footer theme links. */
   back?: string;
 };
-const SECONDARY_LINKS: [string, string][] = [
-  ["/users", "Users"],
-  ["/scales", "Scales"],
-  ["/sync", "Sync"],
-  ["/settings", "Settings"],
-  ["/firmware", "Firmware"],
+const MANAGE_GROUPS: { title: string; links: [string, string][] }[] = [
+  { title: "People & data", links: [["/users", "Users"], ["/import/withings", "Import from Withings"]] },
+  { title: "Devices", links: [["/scales", "Scales"], ["/firmware", "Firmware"], ["/sync", "Health Sync"]] },
+  { title: "System", links: [["/settings", "Settings"]] },
 ];
 function themeSwitch(current: "light" | "dark" | null, back: string): string {
   const item = (value: string, label: string, on: boolean) =>
@@ -120,12 +118,16 @@ function navMarkup(csrf: string, active: string, opts: LayoutOpts): string {
     : users.length === 1
       ? `<a class="nav-link" href="/users/${e(users[0].id)}/overview">Overview</a>`
       : "";
+  const manageLink = (url: string, label: string) => `<a href="${url}"${active === url ? ' aria-current="page"' : ""}>${label}</a>`;
+  const manageActive = MANAGE_GROUPS.some((g) => g.links.some(([u]) => active === u || (u === "/users" && active === "/users")));
+  const manage = `<details class="nav-dropdown nav-manage"><summary class="nav-link"${manageActive ? ' aria-current="page"' : ""}>Manage ${icon("chevron-down", { size: 14 })}</summary><div class="nav-popover nav-popover-end">${MANAGE_GROUPS.map((g) => `<div class="nav-group" role="group" aria-label="${e(g.title)}"><p class="nav-group-title">${e(g.title)}</p>${g.links.map(([u, l]) => manageLink(u, l)).join("")}</div>`).join("")}</div></details>`;
+  const sheetManage = MANAGE_GROUPS.map((g) => `<p class="nav-sheet-heading">${e(g.title)}</p>${g.links.map(([u, l]) => link(u, l)).join("")}`).join("");
   const signOut = (cls: string) => `<form action="/logout" method="post" class="${cls}">${hidden(csrf)}<button class="btn btn-ghost btn-sm" type="submit">Sign out</button></form>`;
-  const brand = `<a class="brand" href="/" aria-label="YourOwnWeigh"><img src="/favicon.png" width="28" height="28" alt=""><strong class="brand-full">YourOwnWeigh</strong><strong class="brand-short">YOW</strong></a>`;
-  return `<nav class="app-nav" aria-label="Main"><div class="app-nav-inner">${brand}<div class="nav-links">${link("/", "Dashboard")}${people}${link("/readings", "Readings", badge)}<span class="nav-sep" aria-hidden="true">·</span>${SECONDARY_LINKS.map(([u, l]) => link(u, l)).join("")}</div>${signOut("nav-signout")}<details class="nav-menu"><summary class="btn btn-ghost btn-icon" aria-label="Menu">${icon("menu", { size: 20 })}</summary><div class="nav-sheet">${link("/", "Dashboard")}${sheetPeople}${link("/readings", "Readings", badge)}<hr>${SECONDARY_LINKS.map(([u, l]) => link(u, l)).join("")}<hr>${signOut("nav-sheet-signout")}</div></details></div></nav>`;
+  const brand = `<a class="brand" href="/" aria-label="YourOpenScale"><img src="/favicon.png" width="28" height="28" alt=""><strong class="brand-full">YourOpenScale</strong><strong class="brand-short">YOS</strong></a>`;
+  return `<nav class="app-nav" aria-label="Main"><div class="app-nav-inner">${brand}<div class="nav-links">${link("/", "Dashboard")}${people}${link("/readings", "Readings", badge)}${manage}</div>${signOut("nav-signout")}<details class="nav-menu"><summary class="btn btn-ghost btn-icon" aria-label="Menu">${icon("menu", { size: 20 })}</summary><div class="nav-sheet">${link("/", "Dashboard")}${sheetPeople}${link("/readings", "Readings", badge)}<hr>${sheetManage}<hr>${signOut("nav-sheet-signout")}</div></details></div></nav>`;
 }
 /* WP-16: PWA head tags (manifest, theme colours from tokens, apple tags). */
-const PWA_HEAD = `<link rel="icon" href="/icons/favicon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#16232a" media="(prefers-color-scheme: dark)"><link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="YOW"><meta name="apple-mobile-web-app-status-bar-style" content="default">`;
+const PWA_HEAD = `<link rel="icon" href="/icons/favicon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#16232a" media="(prefers-color-scheme: dark)"><link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="YOS"><meta name="apple-mobile-web-app-status-bar-style" content="default">`;
 export function layout(
   title: string,
   body: string,
@@ -138,25 +140,25 @@ export function layout(
   const back = opts.back && opts.back.startsWith("/") && !opts.back.startsWith("//") ? opts.back : "/";
   const nav = loggedIn
     ? navMarkup(csrf, active, opts)
-    : `<nav class="app-nav" aria-label="Main"><div class="app-nav-inner"><a class="brand" href="/" aria-label="YourOwnWeigh"><img src="/favicon.png" width="28" height="28" alt=""><strong class="brand-full">YourOwnWeigh</strong><strong class="brand-short">YOW</strong></a></div></nav>`;
+    : `<nav class="app-nav" aria-label="Main"><div class="app-nav-inner"><a class="brand" href="/" aria-label="YourOpenScale"><img src="/favicon.png" width="28" height="28" alt=""><strong class="brand-full">YourOpenScale</strong><strong class="brand-short">YOS</strong></a></div></nav>`;
   const flash = notice
     ? `<div class="flash-wrap"><div class="flash callout callout-info" role="status">${icon("info", { size: 20 })}<div>${e(notice)}</div><button type="button" class="btn btn-ghost btn-icon btn-sm flash-dismiss" data-dismiss aria-label="Dismiss notice">${icon("x", { size: 16 })}</button></div></div>`
     : "";
   return `<!doctype html><html lang="en"${opts.theme ? ` data-theme="${opts.theme}"` : ""}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-    <title>${e(title)} · YourOwnWeigh</title><link rel="icon" href="/favicon.png" type="image/png">${PWA_HEAD}
+    <title>${e(title)} · YourOpenScale</title><link rel="icon" href="/favicon.png" type="image/png">${PWA_HEAD}
     <meta name="csrf-token" content="${e(csrf)}"><script src="/app.js?v=${WEB_APP_VERSION}" defer></script>${assetTags(opts.entries ?? ["app"])}</head><body>
     ${nav}
-    ${flash}<main>${body}</main><footer class="site-footer"><span>YourOwnWeigh · Web App v${e(WEB_APP_VERSION)}</span><a class="link link-quiet" href="https://github.com/TomAnthony/YourOwnWeigh" target="_blank" rel="noopener noreferrer">GitHub</a>${themeSwitch(opts.theme ?? null, back)}</footer></body></html>`;
+    ${flash}<main>${body}</main><footer class="site-footer"><span>YourOpenScale · v${e(WEB_APP_VERSION)}</span><a class="link link-quiet" href="https://github.com/TomAnthony/YourOwnWeigh" target="_blank" rel="noopener noreferrer">Based on YourOwnWeigh</a>${themeSwitch(opts.theme ?? null, back)}</footer></body></html>`;
 }
 const authShell = (inner: string): string =>
-  `<div class="auth-page"><div class="auth-brand"><img src="/favicon.png" width="48" height="48" alt=""><strong>YourOwnWeigh</strong></div><section class="card auth-card">${inner}</section></div>`;
+  `<div class="auth-page"><div class="auth-brand"><img src="/favicon.png" width="48" height="48" alt=""><strong>YourOpenScale</strong></div><section class="card auth-card">${inner}</section></div>`;
 export function setupPage(
   csrf: string,
   bootstrapRequired = false,
   unlocked = false,
 ): string {
   if (bootstrapRequired && !unlocked)
-    return authShell(`<h1 class="auth-title">Welcome to YourOwnWeigh</h1><p class="auth-lead">Enter the bootstrap token shown by the setup command.</p><form method="post" class="form-stack">${hidden(csrf)}<input type="hidden" name="step" value="bootstrap"><label>Bootstrap token<input name="bootstrap_token" type="password" required autocomplete="off"></label><button>Continue</button></form>`);
+    return authShell(`<h1 class="auth-title">Welcome to YourOpenScale</h1><p class="auth-lead">Enter the bootstrap token shown by the setup command.</p><form method="post" class="form-stack">${hidden(csrf)}<input type="hidden" name="step" value="bootstrap"><label>Bootstrap token<input name="bootstrap_token" type="password" required autocomplete="off"></label><button>Continue</button></form>`);
   return authShell(`<h1 class="auth-title">Set your password</h1><p class="auth-lead">Protect your dashboard and Sync API. Passwords must contain at least eight characters.</p><form method="post" class="form-stack">${hidden(csrf)}<input type="hidden" name="step" value="password"><label>Admin password<input name="password" type="password" minlength="8" required autocomplete="new-password"></label><label>Confirm admin password<input name="confirm" type="password" minlength="8" required autocomplete="new-password"></label>
     <label><input type="checkbox" name="separate_sync" value="1" data-toggle="setup-sync-fields"> Set an alternative password for the Sync API</label><div id="setup-sync-fields" class="form-stack" hidden><label>Sync API password<input name="sync_password" type="password" minlength="8" autocomplete="new-password"></label><label>Confirm Sync API password<input name="sync_confirm" type="password" minlength="8" autocomplete="new-password"></label></div><button>Create household</button></form>`);
 }
@@ -396,7 +398,7 @@ export function withingsPreviewPage(
     ["Latest", `${meta.last} (local time in the export)`],
   ];
   if (meta.heightM) summary.push(["Height in export", `${Math.round(meta.heightM * 100)} cm`]);
-  if (meta.ignoredMetrics.length) summary.push(["Not imported", `${meta.ignoredMetrics.join(", ")} (no matching YOW metric)`]);
+  if (meta.ignoredMetrics.length) summary.push(["Not imported", `${meta.ignoredMetrics.join(", ")} (no matching YOS metric)`]);
   return `${pageHeader({ title: "Review Withings import", subtitle: "Check the details before anything is saved", back: { href: "/import/withings", text: "Choose another file" } })}
     ${card({ title: "Summary", bodyHtml: kv(summary) })}
     ${needs}

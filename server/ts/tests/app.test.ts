@@ -220,7 +220,7 @@ test("one TypeScript app serves dashboard, readings API and scale sync with SQLi
     assert.match(dashboardHtml, /73\.3/);
     assert.match(await (await request("/readings")).text(), /73\.25 kg/);
     // WP-14: the Health Sync column only appears once a reading on the page is acknowledged.
-    assert.doesNotMatch(await (await request("/readings")).text(), /Health Sync/);
+    assert.doesNotMatch(await (await request("/readings")).text(), /<th[^>]*>Health Sync/);
     const api = await handleApp(
       new Request("https://local.test/api/users/1/weights", {
         headers: { Authorization: `Basic ${btoa("reader:reader-password")}` },
@@ -319,7 +319,7 @@ test("one TypeScript app serves dashboard, readings API and scale sync with SQLi
       ).status,
       200,
     );
-    assert.doesNotMatch(await (await request("/")).text(), /Health Sync/);
+    assert.doesNotMatch(await (await request("/")).text(), /<th[^>]*>Health Sync/);
     for (const path of ["/readings", "/users/1/readings"]) {
       const page = await (await request(path)).text();
       assert.match(page, /<span class="badge">Acknowledged<\/span>/);

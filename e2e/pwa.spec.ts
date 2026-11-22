@@ -14,7 +14,7 @@ test("manifest is linked, fetched and valid", async ({ page }) => {
   const res = await page.request.get(href!);
   expect(res.headers()["content-type"]).toContain("application/manifest+json");
   const m = await res.json();
-  expect(m).toMatchObject({ name: "YourOwnWeigh", short_name: "YOW", display: "standalone", start_url: "/", scope: "/" });
+  expect(m).toMatchObject({ name: "YourOpenScale", short_name: "YOS", display: "standalone", start_url: "/", scope: "/" });
   for (const icon of m.icons) expect((await page.request.get(icon.src)).status()).toBe(200);
   await expect(page.locator('meta[name="theme-color"]')).toHaveCount(2);
 });

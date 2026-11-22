@@ -1,4 +1,4 @@
-/** YourOwnWeigh service worker (built to /sw.js; the server prepends self.__YOW_PRECACHE__).
+/** YourOpenScale service worker (built to /sw.js; the server prepends self.__YOW_PRECACHE__).
  *
  * Privacy first: this app shows health data behind a login. The worker therefore
  *   - precaches ONLY hashed /assets/* build files, icons, the manifest and /offline;

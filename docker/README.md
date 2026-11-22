@@ -1,4 +1,4 @@
-# YourOwnWeigh in Docker
+# YourOpenScale in Docker
 
 Run the server 24/7 on any Docker host behind your own reverse proxy. For the
 components, flashing and scale setup see the [main README](../README.md); this

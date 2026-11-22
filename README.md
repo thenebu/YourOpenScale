@@ -1,6 +1,8 @@
 <img src="docs/yow.png" alt="YOW logo" width="100" />
 
-# YourOwnWeigh (YOW)
+# YourOpenScale (YOS)
+> Based on [YourOwnWeigh](https://github.com/TomAnthony/YourOwnWeigh) by Tom Anthony (MIT).
+
 ### _Free Wi-Fi Syncing for Withings Scales_
 
 This project provides the components needed to have your Withings scales sync its readings to your own data store. The scales sync over wifi, as they do now, just for free and without Withings.
@@ -27,7 +29,7 @@ This repo provides several components:
 
 You can easily import your devices, and registered scale user roster into YOW, so you can continue right where you left off.
 
-<img src="docs/screenshot.png" alt="YOW Dashboard Screenshot" width="1024">
+<img src="docs/screenshot.png" alt="YourOpenScale Dashboard Screenshot" width="1024">
 
 ## Supported Models
 

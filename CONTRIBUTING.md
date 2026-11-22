@@ -46,3 +46,13 @@ When submitting a PR _please confirm your model as read physically from the devi
 Code produced by AI is welcome, but please have done your due diligence, and be sure you understand the shape of the changes being made.
 
 Firmware PRs produce by AI are fine, but you have to be running this on your own scales, and have validated it works.
+
+## Versioning and releases
+
+The web app follows [SemVer](https://semver.org/). The single source of truth is the `version` field in `package.json`; `server/ts/version.ts` reads it, so the footer and the `/app.js` and `/firmware.js` cache-busting query string follow automatically. Bridge and firmware versions are independent.
+
+To release:
+
+1. Move the "Unreleased" notes in `CHANGELOG.md` under a new `## [X.Y.Z] - date` heading.
+2. `npm version patch|minor|major` (bumps `package.json`, commits and creates the tag `vX.Y.Z`; add `--no-git-tag-version` to do it by hand).
+3. `git push --follow-tags`, then rebuild the image (`docker/FORK-DEPLOY.md`).
