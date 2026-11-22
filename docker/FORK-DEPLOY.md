@@ -50,6 +50,18 @@ labels:
   `cache-control: public, max-age=31536000, immutable` (take the file name from
   the page source, e.g. `app-*.css`).
 
+## Install as app
+
+Over the https origin the dashboard is installable: desktop Chrome/Edge show an
+Install button (address bar, or "Install app" in the footer); on Android use
+Install app; on iOS Safari use Share, then Add to Home Screen. The service worker
+(`/sw.js`) precaches only hashed `/assets/*`, icons, the manifest and `/offline`;
+pages and API responses are never cached. After a deploy the new worker takes
+over on the next reload: an "Update available" toast offers Reload, otherwise it
+activates once all old tabs are closed. Smoke check:
+`curl -sI https://waage.schuessler.cloud/sw.js` returns 200 with `cache-control: no-cache`
+(no login needed for `/sw.js`, `/manifest.webmanifest`, `/offline`, `/icons/*`).
+
 ## Rollback
 
 Set the compose image back to the previous tag and run `docker compose up -d`.

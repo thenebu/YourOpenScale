@@ -123,6 +123,8 @@ function navMarkup(csrf: string, active: string, opts: LayoutOpts): string {
   const brand = `<a class="brand" href="/" aria-label="YourOwnWeigh"><img src="/favicon.png" width="28" height="28" alt=""><strong class="brand-full">YourOwnWeigh</strong><strong class="brand-short">YOW</strong></a>`;
   return `<nav class="app-nav" aria-label="Main"><div class="app-nav-inner">${brand}<div class="nav-links">${link("/", "Dashboard")}${people}${link("/readings", "Readings", badge)}<span class="nav-sep" aria-hidden="true">·</span>${SECONDARY_LINKS.map(([u, l]) => link(u, l)).join("")}</div>${signOut("nav-signout")}<details class="nav-menu"><summary class="btn btn-ghost btn-icon" aria-label="Menu">${icon("menu", { size: 20 })}</summary><div class="nav-sheet">${link("/", "Dashboard")}${sheetPeople}${link("/readings", "Readings", badge)}<hr>${SECONDARY_LINKS.map(([u, l]) => link(u, l)).join("")}<hr>${signOut("nav-sheet-signout")}</div></details></div></nav>`;
 }
+/* WP-16: PWA head tags (manifest, theme colours from tokens, apple tags). */
+const PWA_HEAD = `<link rel="icon" href="/icons/favicon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#16232a" media="(prefers-color-scheme: dark)"><link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="YOW"><meta name="apple-mobile-web-app-status-bar-style" content="default">`;
 export function layout(
   title: string,
   body: string,
@@ -139,8 +141,8 @@ export function layout(
   const flash = notice
     ? `<div class="flash-wrap"><div class="flash callout callout-info" role="status">${icon("info", { size: 20 })}<div>${e(notice)}</div><button type="button" class="btn btn-ghost btn-icon btn-sm flash-dismiss" data-dismiss aria-label="Dismiss notice">${icon("x", { size: 16 })}</button></div></div>`
     : "";
-  return `<!doctype html><html lang="en"${opts.theme ? ` data-theme="${opts.theme}"` : ""}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>${e(title)} · YourOwnWeigh</title><link rel="icon" href="/favicon.png" type="image/png">
+  return `<!doctype html><html lang="en"${opts.theme ? ` data-theme="${opts.theme}"` : ""}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>${e(title)} · YourOwnWeigh</title><link rel="icon" href="/favicon.png" type="image/png">${PWA_HEAD}
     <meta name="csrf-token" content="${e(csrf)}"><script src="/app.js?v=${WEB_APP_VERSION}" defer></script>${assetTags(opts.entries ?? ["app"])}</head><body>
     ${nav}
     ${flash}<main>${body}</main><footer class="site-footer"><span>YourOwnWeigh · Web App v${e(WEB_APP_VERSION)}</span><a class="link link-quiet" href="https://github.com/TomAnthony/YourOwnWeigh" target="_blank" rel="noopener noreferrer">GitHub</a>${themeSwitch(opts.theme ?? null, back)}</footer></body></html>`;

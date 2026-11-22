@@ -5,6 +5,7 @@ const dir = import.meta.dirname;
 export default defineConfig({
   root: dir,
   base: "/assets/",
+  publicDir: false, // web/public (icons, manifest) is served by server/ts/pwa.ts
   build: {
     outDir: "dist",
     assetsDir: ".",
@@ -16,6 +17,10 @@ export default defineConfig({
       input: {
         app: `${dir}/src/entries/app.ts`,
         charts: `${dir}/src/entries/charts.ts`,
+        sw: `${dir}/src/sw/sw.ts`, // fixed name: served as /sw.js by server/ts/pwa.ts
+      },
+      output: {
+        entryFileNames: (chunk) => (chunk.name === "sw" ? "sw.js" : "[name]-[hash].js"),
       },
     },
   },

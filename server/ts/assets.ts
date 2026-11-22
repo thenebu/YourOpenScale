@@ -9,6 +9,7 @@ type ManifestChunk = {
   isEntry?: boolean;
   css?: string[];
   imports?: string[];
+  assets?: string[];
 };
 type Manifest = Record<string, ManifestChunk>;
 
@@ -90,4 +91,18 @@ export function assetPath(name: string): string | null {
   if (!/^[A-Za-z0-9._-]+$/.test(name) || name.startsWith(".")) return null;
   const path = join(distDir(), name);
   return existsSync(path) ? path : null;
+}
+
+/** Every hashed build file (JS, CSS, fonts) for the service worker precache; excludes sw.js itself. */
+export function precacheFiles(): string[] {
+  const m = load();
+  if (!m) return [];
+  const files = new Set<string>();
+  for (const c of Object.values(m)) {
+    files.add(c.file);
+    for (const f of c.css ?? []) files.add(f);
+    for (const f of c.assets ?? []) files.add(f);
+  }
+  files.delete("sw.js");
+  return [...files].filter((f) => /^[A-Za-z0-9._-]+$/.test(f)).sort();
 }
