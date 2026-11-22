@@ -1,7 +1,7 @@
 <img src="docs/yow.png" alt="YOW logo" width="100" />
 
 # YourOpenScale (YOS)
-> A fork of [YourOwnWeigh](https://github.com/TomAnthony/YourOwnWeigh) by Tom Anthony (MIT). The scale firmware patches, the Python bridge and the original server are his work; this fork builds on them. See [What this fork adds](#what-this-fork-adds).
+> A fork of [YourOwnWeigh](https://github.com/TomAnthony/YourOwnWeigh) by Tom Anthony (MIT). The scale firmware patches, the Python bridge and the original server are his work; this fork builds on them. Its changes were developed largely with the AI assistant Claude ([details](#how-this-fork-was-made)). See [Direction](#direction-your-data-your-server-your-analysis) and [What this fork adds](#what-this-fork-adds).
 
 ### _Free Wi-Fi Syncing for Withings Scales_
 
@@ -16,6 +16,14 @@ _The upstream project was released in October 2026 and has been used across vari
 Issues and pull requests are welcome in this repository. Support for new scale models and firmware work is best discussed with the [upstream project](https://github.com/TomAnthony/YourOwnWeigh) as well.
 
 <img src="docs/screenshot-dashboard.png" alt="YourOpenScale dashboard with three people (demo data)" width="1024">
+
+## Direction: your data, your server, your analysis
+
+Upstream frees the scale from the Withings cloud. This fork goes one step further and aims at the whole chain staying in your hands:
+
+- **Your data.** Every weigh-in lands in one SQLite database (or your own Cloudflare D1) that you own. You can download it any time (Settings → Backup and restore → Export database), export each person's series as CSV, and import a Withings data export to bring your history along. Nothing is sent to a third party.
+- **Your server.** The scale talks to a server you run, at home, on a NAS or on a small VPS, with your own domain and TLS. No account, no subscription, no vendor app. The web pages load everything from your own server (enforced by a Content-Security-Policy): no CDNs, web fonts or analytics. The only outbound requests are the optional ones you trigger yourself, such as fetching a Withings export or the stock firmware for patching.
+- **Your analysis.** Trend, rate, goal projection, weekly rhythm, records and data-quality checks are computed on your server from your readings, with the formulas in the open (see "How the numbers are calculated" at the bottom of each overview, and [`server/ts/analysis/`](server/ts/analysis/)). Assumptions are labelled as such, and a sync API ([`contracts/`](contracts/readings/v1/README.md)) lets you pull the raw readings into Apple Health or your own tools and do your own analysis.
 
 ## What this fork adds
 
@@ -206,6 +214,12 @@ There are a few other community projects that relate to this
 - [withings-local](https://github.com/pierosavi/withings-local) - supports syncing Withings scales to Homekit over Bluetooth. Doesn't require updating the firmware.
 - [esphome-withings-wpp](https://github.com/NavistAuLabs/esphome-withings-wpp) - allows syncing Withings scales via an ESPHome sensor. Doesn't require updating the firmware.
 - [openScale](https://github.com/oliexdev/openScale) - Open-source weight and body metrics tracker, with support for Bluetooth scales, but no Withings support currently.
+
+## How this fork was made
+
+The changes in this fork (new UI, analysis and goal projection, German translation, Docker deployment and the deploy script, this documentation) were written largely by [Claude](https://claude.com/claude-code), Anthropic's AI coding assistant, working in Claude Code. The project was initiated and directed by Uwe Schüssler, who runs it in production for his own scales. The firmware patches, the bridge and the original server come from Tom Anthony and the upstream contributors.
+
+Please keep that in mind when you rely on it: the code has an automated test suite (unit tests for the analysis, server tests, browser tests), but it has not had an independent human code review, and the projection assumptions are heuristics. Bug reports and reviews are very welcome.
 
 ## License
 
