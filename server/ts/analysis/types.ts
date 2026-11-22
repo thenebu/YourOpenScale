@@ -24,11 +24,14 @@ export type Bucket = {
 };
 export type TrendPoint = { t: number; v: number; segment: number };
 export type Rate = { perWeek: number; seWeek: number; n: number; days: number; from: number; to: number };
-export type ProjectionStatus = "reached" | "on-track" | "too-slow" | "moving-away" | "stable" | "insufficient";
+export type ProjectionStatus = "reached" | "on-track" | "too-slow" | "moving-away" | "stable" | "levels-off" | "insufficient";
 export type Projection = {
   status: ProjectionStatus; goal: number; remaining: number;
   etaDays: number | null; date: string | null; earliest: string | null; latest: string | null;
   requiredPerWeek: number | null;   // only when the goal has a target date
+  /** "decay": flattening-curve fit since the goal start; "linear": straight line at the current rate. */
+  model: "linear" | "decay";
+  plateauKg: number | null;         // fitted level the curve flattens out at (decay model only)
 };
 export type Goal = { kg: number; date: string | null; startKg: number; startAt: number; startManual?: boolean };
 export type GoalProgress = { fraction: number; startKg: number; currentKg: number; goalKg: number };

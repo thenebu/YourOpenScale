@@ -36,12 +36,13 @@ export function summarize(a: UserAnalysis): string[] {
     const goal = mass(a.goal.kg);
     if (p.status === "reached") parts.push(t("an.sum.reached", { goal }));
     else if (p.status === "on-track" && p.date) {
-      let s = t("an.sum.onTrack", { goal, month: month(p.date) });
+      let s = t(p.model === "decay" ? "an.sum.onTrackDecay" : "an.sum.onTrack", { goal, month: month(p.date) });
       if (p.earliest && p.latest && month(p.earliest) !== month(p.latest))
         s += t("an.sum.between2", { a: month(p.earliest), b: month(p.latest) });
       else if (p.earliest && !p.latest) s += t("an.sum.earliest", { a: month(p.earliest) });
       parts.push(`${s}.`);
-    } else if (p.status === "too-slow") parts.push(t("an.sum.tooSlow", { goal }));
+    } else if (p.status === "levels-off") parts.push(t("an.sum.levelsOff", { goal, plateau: mass(p.plateauKg ?? p.goal) }));
+    else if (p.status === "too-slow") parts.push(t("an.sum.tooSlow", { goal }));
     else if (p.status === "moving-away") parts.push(t("an.sum.away", { goal }));
     else if (p.status === "stable") parts.push(t("an.sum.holding"));
   }

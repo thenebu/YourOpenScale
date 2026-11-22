@@ -86,15 +86,88 @@ export function linearRate(daily: DayPoint[], windowDays: number, now: number): 
 
 export const isStable = (r: Rate) => Math.abs(r.perWeek) < Math.max(0.1, 1.96 * r.seWeek);
 
+/** Fit needs at least this many daily points spread over this many days since the goal start. */
+const DECAY_MIN_POINTS = 20;
+const DECAY_MIN_SPAN_DAYS = 42;
+/** Time constants tried, in days (geometric grid); the grid's upper end means "no visible flattening". */
+const TAUS = Array.from({ length: 40 }, (_, i) => 10 * 100 ** (i / 39));
+/** An asymptote within this distance of the goal counts as "the goal is not reached". */
+const PLATEAU_MARGIN_KG = 0.25;
+
+export type DecayFit = { plateau: number; tauDays: number; etaDays: number | null; earliestDays: number | null; latestDays: number | null };
+
+/** Days for a curve flattening towards `a` (time constant tau) to go from `from` to `to`; null if it never gets there. */
+function decayEta(from: number, to: number, a: number, tau: number): number | null {
+  const x = from - a;
+  const y = to - a;
+  if (Math.sign(x) !== Math.sign(y) || Math.abs(y) < PLATEAU_MARGIN_KG || Math.abs(y) >= Math.abs(x)) return null;
+  return tau * Math.log(x / y);
+}
+
+/**
+ * Exponential-approach fit w(t) = a + c·exp(-t/tau) over the last contiguous stretch since the goal start,
+ * for a goal that lies beyond the current trend. Losing weight slows down as the body nears its balance
+ * point, so a straight line is too optimistic. For every tau the fit is a linear least squares in (a, c);
+ * the best tau wins, and only when it beats the straight line clearly (F-test, 1 extra parameter).
+ * The date range comes from all taus whose error stays within the 95% profile-likelihood band.
+ * Returns null when the history is too short, not curved, or does not move towards the goal.
+ */
+export function fitDecay(daily: DayPoint[], startAt: number, trendNow: number, goalKg: number, now: number): DecayFit | null {
+  let pts = daily.filter((d) => d.t >= startAt - DAY && d.t <= now);
+  for (let k = pts.length - 1; k > 0; k--) {
+    if (pts[k].t - pts[k - 1].t > 30 * DAY) { pts = pts.slice(k); break; }
+  }
+  const n = pts.length;
+  if (n < DECAY_MIN_POINTS || (pts[n - 1].t - pts[0].t) / DAY < DECAY_MIN_SPAN_DAYS) return null;
+  const xs = pts.map((p) => (p.t - pts[0].t) / DAY);
+  const ys = pts.map((p) => p.v);
+  const ols = (e: number[]) => {
+    const eBar = e.reduce((s, v) => s + v, 0) / n;
+    const yBar = ys.reduce((s, v) => s + v, 0) / n;
+    let see = 0;
+    let sey = 0;
+    for (let i = 0; i < n; i++) { see += (e[i] - eBar) ** 2; sey += (e[i] - eBar) * (ys[i] - yBar); }
+    if (see < 1e-12) return null;
+    const c = sey / see;
+    const a = yBar - c * eBar;
+    let sse = 0;
+    for (let i = 0; i < n; i++) sse += (ys[i] - a - c * e[i]) ** 2;
+    return { a, c, sse };
+  };
+  const lin = ols(xs);
+  if (!lin) return null;
+  const fits = TAUS.map((tau) => {
+    const f = ols(xs.map((x) => Math.exp(-x / tau)));
+    return f ? { tau, ...f } : null;
+  }).filter((f): f is NonNullable<typeof f> => f !== null);
+  if (!fits.length) return null;
+  const best = fits.reduce((m, f) => (f.sse < m.sse ? f : m));
+  if (best.tau >= TAUS[TAUS.length - 1] * 0.95) return null;     // no flattening visible
+  if (best.sse <= 0 || (lin.sse - best.sse) / (best.sse / (n - 3)) < 4) return null;
+  // The curve must be heading towards the goal right now.
+  const slopeNow = (-best.c / best.tau) * Math.exp(-xs[n - 1] / best.tau);
+  if (Math.sign(slopeNow) !== Math.sign(goalKg - trendNow)) return null;
+  const band = best.sse * (1 + 3.84 / (n - 3));
+  const etas = fits.filter((f) => f.sse <= band).map((f) => decayEta(trendNow, goalKg, f.a, f.tau));
+  const finite = etas.filter((v): v is number => v !== null);
+  return {
+    plateau: best.a, tauDays: best.tau,
+    etaDays: decayEta(trendNow, goalKg, best.a, best.tau),
+    earliestDays: finite.length ? Math.min(...finite) : null,
+    latestDays: finite.length === etas.length ? Math.max(...finite) : null,
+  };
+}
+
 export function projectGoal(
   trendNow: number | null,
   rate: Rate | null,
   goal: Goal,
   now: number,
+  history: DayPoint[] = [],
 ): Projection {
   const base: Projection = {
     status: "insufficient", goal: goal.kg, remaining: 0, etaDays: null, date: null,
-    earliest: null, latest: null, requiredPerWeek: null,
+    earliest: null, latest: null, requiredPerWeek: null, model: "linear", plateauKg: null,
   };
   if (trendNow === null) return base;
   const today = utcDay(now);
@@ -109,13 +182,24 @@ export function projectGoal(
   if (isStable(rate)) return { ...base, status: "stable" };
   const b = rate.perWeek / 7;
   if (Math.sign(b) !== Math.sign(remaining)) return { ...base, status: "moving-away" };
+  const at = (days: number) => addDays(today, Math.round(days));
+  const fit = fitDecay(history, goal.startAt, trendNow, goal.kg, now);
+  if (fit) {
+    const curved = { ...base, model: "decay" as const, plateauKg: fit.plateau };
+    if (fit.etaDays === null) return { ...curved, status: "levels-off" };
+    if (fit.etaDays > 730) return { ...curved, status: "too-slow", etaDays: fit.etaDays };
+    return {
+      ...curved, status: "on-track", etaDays: fit.etaDays, date: at(fit.etaDays),
+      earliest: fit.earliestDays !== null ? at(Math.min(fit.earliestDays, fit.etaDays)) : null,
+      latest: fit.latestDays !== null && fit.latestDays <= 1095 ? at(Math.max(fit.latestDays, fit.etaDays)) : null,
+    };
+  }
   const etaDays = remaining / b;
   if (etaDays > 730) return { ...base, status: "too-slow", etaDays };
   const se = rate.seWeek / 7;
   const sign = Math.sign(b);
   const bFast = b + sign * 1.96 * se;
   const bSlow = b - sign * 1.96 * se;
-  const at = (days: number) => addDays(today, Math.round(days));
   const lateDays = Math.sign(bSlow) === sign ? remaining / bSlow : null;
   return {
     ...base, status: "on-track", etaDays, date: at(etaDays), earliest: at(remaining / bFast),

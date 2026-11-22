@@ -329,7 +329,7 @@ export function buildUserAnalysis(input: AnalysisInput): UserAnalysis {
   const rate = weight?.rate ?? null;
   const goalOut = goal;
   const progress = goal ? goalProgress(trendNow, goal) : null;
-  const projection = goal ? projectGoal(trendNow, rate, goal, now) : null;
+  const projection = goal ? projectGoal(trendNow, rate, goal, now, weightS?.daily) : null;
   const weeklyRate = weightS ? inRange(weeklyRateSeries(weightS.trend), ctx.from, ctx.to) : [];
   const periods = weightS ? periodComparisons(weightS.daily, now, zone) : [];
 
@@ -435,7 +435,7 @@ export function buildDashboardSummary(input: {
   const rate = weightS && !stale ? linearRate(weightS.daily, 28, now) : null;
   const trendNow = lastTrend ? lastTrend.v : null;
   const progress = goal ? goalProgress(trendNow, goal) : null;
-  const projection = goal ? projectGoal(trendNow, rate, goal, now) : null;
+  const projection = goal ? projectGoal(trendNow, rate, goal, now, weightS?.daily) : null;
 
   let text = rate ? rateText(rate, unit) : t("an.notEnoughRecent");
   if (goal && projection?.status === "on-track" && projection.date)

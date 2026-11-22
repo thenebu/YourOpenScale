@@ -193,3 +193,35 @@ test("goalProgress works for loss and gain goals and clamps", () => {
   assert.equal(goalProgress(83, gain)!.fraction, 1);
   assert.equal(goalProgress(null, gain), null);
 });
+
+// Exponential approach: 100 kg start, flattening out at 85 kg (tau 60 days), tiny deterministic wiggle.
+const decaySeries = (days: number, plateau = 85) =>
+  Array.from({ length: days }, (_, i) => dp(i, plateau + (100 - plateau) * Math.exp(-i / 60) + 0.15 * Math.sin(i * 1.7)));
+const ratePair = (d: DayPoint[]) => linearRate(d, 28, d[d.length - 1].t)!;
+
+test("projectGoal uses the flattening model and is later than the straight line", () => {
+  const d = decaySeries(120);
+  const now = d[d.length - 1].t;
+  const trendNow = 85 + 15 * Math.exp(-119 / 60);
+  const goalStart: Goal = { kg: 80, date: null, startKg: 100, startAt: T0 };
+  const reachable = projectGoal(trendNow, ratePair(d), { ...goalStart, kg: 86 }, now, d);
+  assert.equal(reachable.model, "decay");
+  assert.equal(reachable.status, "on-track");
+  const linear = projectGoal(trendNow, ratePair(d), { ...goalStart, kg: 86 }, now);
+  assert.equal(linear.model, "linear");
+  assert.ok(reachable.etaDays! > linear.etaDays!);
+  assert.ok(reachable.earliest! <= reachable.date! && reachable.date! <= (reachable.latest ?? reachable.date!));
+  // Goal below the fitted floor: levels off instead of a date.
+  const below = projectGoal(trendNow, ratePair(d), goalStart, now, d);
+  assert.equal(below.status, "levels-off");
+  assert.ok(Math.abs(below.plateauKg! - 85) < 1);
+  assert.equal(below.date, null);
+});
+
+test("projectGoal falls back to the straight line for short or straight histories", () => {
+  const short = decaySeries(30);
+  const g: Goal = { kg: 80, date: null, startKg: 100, startAt: T0 };
+  assert.equal(projectGoal(92, ratePair(short), g, short[29].t, short).model, "linear");
+  const straight = series(Array.from({ length: 90 }, (_, i) => 100 - 0.1 * i + 0.1 * Math.sin(i * 1.3)));
+  assert.equal(projectGoal(91, ratePair(straight), g, straight[89].t, straight).model, "linear");
+});
