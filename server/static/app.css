@@ -5,8 +5,8 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  color: #19303a;
-  background: #f2f7f7;
+  color: #1a1d2e;
+  background: #f5f6fa;
 }
 * {
   box-sizing: border-box;
@@ -25,7 +25,7 @@ nav {
   flex-wrap: wrap;
   gap: 0.6rem;
   min-height: 76px;
-  border-bottom: 1px solid #d9e6e6;
+  border-bottom: 1px solid #e0e3ee;
   margin-bottom: 2rem;
 }
 nav .brand {
@@ -45,29 +45,29 @@ nav .brand img {
 nav strong {
   font-size: 1.25rem;
   letter-spacing: -0.04em;
-  color: #087a76;
+  color: #4a40c4;
 }
 nav a {
   padding: 0.5rem 0.72rem;
   border-radius: 0.5rem;
-  color: #36535b;
+  color: #4c5270;
   text-decoration: none;
   font-weight: 600;
 }
 nav a:hover,
 nav a[aria-current="page"] {
-  background: #e0f1ed;
-  color: #086b66;
+  background: #ebeafc;
+  color: #3d34b0;
 }
 nav form {
   margin-left: auto;
 }
 a {
-  color: #087a76;
+  color: #4a40c4;
   text-underline-offset: 0.15em;
 }
 a:hover {
-  color: #035d5b;
+  color: #2e2788;
 }
 main {
   display: grid;
@@ -77,9 +77,9 @@ section,
 .card {
   background: #fff;
   padding: clamp(1rem, 2.5vw, 1.55rem);
-  border: 1px solid #dfe9e9;
+  border: 1px solid #e0e3ee;
   border-radius: 0.9rem;
-  box-shadow: 0 6px 22px #193e3c08;
+  box-shadow: 0 6px 22px #1a1d2e08;
 }
 h1,
 h2,
@@ -121,14 +121,14 @@ input,
 select,
 textarea {
   padding: 0.62rem 0.72rem;
-  border: 1px solid #b8cccf;
+  border: 1px solid #b9bed3;
   background: #fff;
   min-width: 0;
 }
 input:focus,
 select:focus,
 textarea:focus {
-  outline: 2px solid #19a9a3;
+  outline: 2px solid #6d63e0;
   outline-offset: 1px;
 }
 button,
@@ -138,9 +138,9 @@ button,
   justify-content: center;
   width: fit-content;
   padding: 0.6rem 1rem;
-  border: 1px solid #087a76;
+  border: 1px solid #4a40c4;
   border-radius: 0.5rem;
-  background: #087a76;
+  background: #4a40c4;
   color: #fff;
   font-weight: 650;
   cursor: pointer;
@@ -148,7 +148,7 @@ button,
 }
 button:hover,
 .button:hover {
-  background: #05635f;
+  background: #3b32a8;
   color: #fff;
 }
 button:focus-visible,
@@ -159,12 +159,12 @@ button:focus-visible,
 button.secondary,
 .button.secondary {
   background: #fff;
-  color: #087a76;
+  color: #4a40c4;
 }
 button.secondary:hover,
 .button.secondary:hover {
-  background: #eaf5f3;
-  color: #035d5b;
+  background: #ebeafc;
+  color: #2e2788;
 }
 button.danger {
   border-color: #a43d38;
@@ -180,7 +180,7 @@ button:disabled {
 }
 nav button {
   background: transparent;
-  color: #087a76;
+  color: #4a40c4;
 }
 table {
   border-collapse: collapse;
@@ -226,7 +226,7 @@ tr:hover td {
   font-size: 0.85rem;
 }
 .eyebrow {
-  color: #087a76;
+  color: #4a40c4;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -256,7 +256,7 @@ tr:hover td {
   margin-bottom: 0.4rem;
 }
 .metric {
-  color: #087a76;
+  color: #4a40c4;
   font-size: 1.35rem;
   font-weight: 750;
 }
@@ -295,7 +295,7 @@ fieldset label {
 details > summary {
   cursor: pointer;
   font-weight: 700;
-  color: #087a76;
+  color: #4a40c4;
 }
 .device {
   margin-top: 1rem;
@@ -372,8 +372,8 @@ dialog h2 {
   color: #53666c;
 }
 .tabs button[aria-selected="true"] {
-  background: #e0f1ed;
-  color: #087a76;
+  background: #ebeafc;
+  color: #4a40c4;
 }
 .http-ack {
   display: flex;
@@ -631,10 +631,10 @@ label input[type="checkbox"] {
   gap: 0.7rem;
   padding: 1rem;
   border: 1px solid #cce4e1;
-  border-left: 4px solid #087a76;
+  border-left: 4px solid #4a40c4;
   border-radius: 0.65rem;
   background: white;
-  color: #19303a;
+  color: #1a1d2e;
   box-shadow: 0 5px 24px #19343e24;
   font-size: 0.95rem;
   overflow-wrap: anywhere;
@@ -644,7 +644,7 @@ label input[type="checkbox"] {
     transform 0.25s ease;
 }
 .toast-icon {
-  color: #087a76;
+  color: #4a40c4;
   font-weight: 700;
 }
 .toast-error {
@@ -680,13 +680,13 @@ label input[type="checkbox"] {
 .file-link:active,
 .brand:hover {
   background: transparent;
-  color: #035d5b;
+  color: #2e2788;
 }
 .text-button {
   border-radius: 0;
 }
 .page-footer {
-  border-top: 1px solid #d9e6e6;
+  border-top: 1px solid #e0e3ee;
   padding-top: 1rem;
 }
 .devices-list td:last-child {
@@ -792,7 +792,7 @@ label input[type="checkbox"] {
 }
 .scale-details th {
   width: 30%;
-  color: #087a76;
+  color: #4a40c4;
   font-size: 1rem;
 }
 .scale-details th,
@@ -808,7 +808,7 @@ label input[type="checkbox"] {
   padding: 0;
   border: 0;
   border-radius: 0;
-  color: #19303a;
+  color: #1a1d2e;
   background: transparent;
   font-weight: 400;
 }
@@ -866,7 +866,7 @@ label input[type="checkbox"] {
   gap: 0.5rem 1rem;
   margin-top: 2rem;
   padding-top: 1rem;
-  border-top: 1px solid #d9e6e6;
+  border-top: 1px solid #e0e3ee;
   color: #53666c;
   font-size: 0.85rem;
 }
@@ -908,14 +908,14 @@ label input[type="checkbox"] {
   padding: 0.25rem 0.8rem;
   font-size: 0.875rem;
   text-decoration: none;
-  color: #19303a;
+  color: #1a1d2e;
   background: #fff;
 }
 .range-switch a + a {
   border-left: 1px solid #c4d8d8;
 }
 .range-switch a[aria-current="true"] {
-  background: #087a76;
+  background: #4a40c4;
   color: #fff;
 }
 .chart {
@@ -927,7 +927,7 @@ label input[type="checkbox"] {
   height: auto;
 }
 .chart .grid {
-  stroke: #d9e6e6;
+  stroke: #e0e3ee;
   stroke-width: 1;
 }
 .chart .axis {
@@ -941,26 +941,26 @@ label input[type="checkbox"] {
   stroke-linecap: round;
 }
 .chart .line {
-  stroke: #087a76;
+  stroke: #4a40c4;
   stroke-width: 2;
 }
 .chart .area {
-  fill: #087a76;
+  fill: #4a40c4;
   fill-opacity: 0.08;
 }
 .chart .trend {
-  stroke: #19303a;
+  stroke: #1a1d2e;
   stroke-width: 1.5;
   stroke-dasharray: 5 4;
   opacity: 0.7;
 }
 .chart .pt {
-  fill: #087a76;
+  fill: #4a40c4;
   stroke: #fff;
   stroke-width: 1;
 }
 .chart .pt.active {
-  fill: #19303a;
+  fill: #1a1d2e;
   r: 5;
 }
 .chart-readout {
@@ -977,10 +977,10 @@ label input[type="checkbox"] {
   width: 1.1rem;
   height: 0;
   margin: 0 0.3rem 0.2rem 0.5rem;
-  border-top: 2px solid #087a76;
+  border-top: 2px solid #4a40c4;
 }
 .chart-readout .swatch.trend {
-  border-top: 2px dashed #19303a;
+  border-top: 2px dashed #1a1d2e;
 }
 .chart-stats {
   display: flex;
@@ -1010,18 +1010,18 @@ label input[type="checkbox"] {
   flex-direction: column;
   gap: 0.1rem;
   padding: 0.6rem 0.75rem;
-  border: 1px solid #d9e6e6;
+  border: 1px solid #e0e3ee;
   border-radius: 0.6rem;
   background: #fff;
-  color: #19303a;
+  color: #1a1d2e;
   text-decoration: none;
 }
 .tile[aria-current="true"] {
-  border-color: #087a76;
-  box-shadow: 0 0 0 1px #087a76;
+  border-color: #4a40c4;
+  box-shadow: 0 0 0 1px #4a40c4;
 }
 a.tile:hover {
-  border-color: #087a76;
+  border-color: #4a40c4;
 }
 .tile-label {
   color: #53666c;
@@ -1041,7 +1041,7 @@ a.tile:hover {
 }
 .tile .spark path {
   fill: none;
-  stroke: #087a76;
+  stroke: #4a40c4;
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;
@@ -1064,7 +1064,7 @@ a.tile:hover {
   fill: #9fc9c6;
 }
 .chart .bar.hl {
-  fill: #087a76;
+  fill: #4a40c4;
 }
 .hint-box {
   margin: 0.5rem 0 0.75rem;
