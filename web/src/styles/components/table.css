@@ -1,1 +1,76 @@
-/* Owner: WP-04 (components). */
+/* Owner: WP-04. Tables. Legacy bare tables inherit the base-layer defaults; .table adds the full look. */
+.table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--text-sm);
+}
+.table caption {
+  text-align: start;
+}
+:is(.table, table) th {
+  background: var(--color-surface-sunken);
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+:is(.table, table) td {
+  min-height: 44px;
+}
+.table td,
+.table th {
+  height: 44px;
+}
+:is(.table, table) tbody tr:hover td {
+  background: var(--color-surface-sunken);
+}
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.table td.num,
+.table th.num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+/* Legacy tables: sunken header band without a wrapper. */
+:where(table):not(.table) th {
+  background: var(--color-surface-sunken);
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-6);
+  font-size: var(--text-sm);
+}
+.kv dt {
+  color: var(--color-text-muted);
+}
+.kv dd {
+  font-weight: 500;
+}
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

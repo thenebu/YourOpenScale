@@ -1,1 +1,145 @@
-/* Owner: WP-04 (components). */
+/* Owner: WP-04. Form controls (bare elements, so legacy markup is covered). */
+input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"], [type="range"], [type="color"]),
+select,
+textarea {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 var(--space-3);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  transition: border-color var(--dur-1);
+}
+textarea {
+  height: auto;
+  min-height: 80px;
+  padding-block: var(--space-2);
+  line-height: var(--leading-sm);
+}
+input:not([type="checkbox"], [type="radio"], [type="file"]):hover,
+select:hover,
+textarea:hover {
+  border-color: var(--color-text-subtle);
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 0;
+  border-color: var(--color-accent);
+}
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-subtle);
+}
+select {
+  appearance: none;
+  padding-inline-end: 36px;
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-accent);
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin: 0;
+}
+label {
+  display: grid;
+  gap: 6px;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  font-weight: 600;
+}
+label:has(> input[type="checkbox"], > input[type="radio"]) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 500;
+}
+.hint {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+fieldset {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+legend {
+  padding-inline: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.inline-form {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.inline-form :is(input, select) {
+  width: auto;
+}
+
+input[type="file"] {
+  max-width: 100%;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+input[type="file"]::file-selector-button {
+  height: 40px;
+  margin-inline-end: var(--space-3);
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+input[type="file"]::file-selector-button:hover {
+  background: var(--color-surface-sunken);
+}
+.dropzone {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: center;
+  padding: var(--space-6);
+  text-align: center;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+.dropzone[data-dragover],
+.dropzone:focus-within {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+/* Legacy tooltip */
+.info-tip {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  padding: 10px 12px;
+}
