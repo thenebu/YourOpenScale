@@ -237,6 +237,9 @@ test("long secondary series are thinned to weekly detail on the wire", () => {
   assert.ok(m.trend.length < 120 && m.trend.length > 90);
   assert.equal(wire.weight!.lod.daily.length, a.weight!.lod.daily.length, "weight is never thinned");
   assert.equal(a.metrics[0].lod.daily.length, 700, "the in-memory model keeps full detail");
+  // The composition island navigates by daily points, so fat and lean mass are never thinned.
+  assert.equal(wire.composition!.fatMass!.lod.daily.length, 700);
+  assert.equal(wire.composition!.leanMass!.lod.daily.length, 700);
 });
 
 test("summarize: sentences exist, are clean, and respect missing inputs", () => {

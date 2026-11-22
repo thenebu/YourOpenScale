@@ -108,7 +108,7 @@ export function serializeMetric(m: MetricAnalysis, ids = false, thinned = false)
 }
 
 export function serializeAnalysis(a: UserAnalysis): WireUserAnalysis {
-  const metric = (m: MetricAnalysis | null, ids = false) => (m ? serializeMetric(m, ids, !ids) : null);
+  const metric = (m: MetricAnalysis | null, ids = false, thinned = !ids) => (m ? serializeMetric(m, ids, thinned) : null);
   const comp = a.composition;
   return {
     ...round({
@@ -120,8 +120,9 @@ export function serializeAnalysis(a: UserAnalysis): WireUserAnalysis {
     composition: comp
       ? {
         ...round({ ...comp, fatMass: undefined, leanMass: undefined, fatPct: undefined }),
-        fatMass: metric(comp.fatMass),
-        leanMass: metric(comp.leanMass),
+        // The composition island needs daily points for its tooltip navigation, so these stay unthinned.
+        fatMass: metric(comp.fatMass, false, false),
+        leanMass: metric(comp.leanMass, false, false),
         fatPct: metric(comp.fatPct),
       } as WireComposition
       : null,

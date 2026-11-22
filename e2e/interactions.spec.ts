@@ -216,3 +216,30 @@ test.describe("dialogs", () => {
     }
   });
 });
+
+test("composition chart hover throws no console error on a long history", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  await page.goto(`${OVERVIEW}?range=all`);
+  await page.locator("#chart-composition").scrollIntoViewIfNeeded();
+  const chart = await mounted(page, "chart-composition");
+  const box = (await chart.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.4);
+  await page.mouse.move(box.x + box.width * 0.45, box.y + box.height * 0.4);
+  await expect(page.locator("#chart-composition .chart-tooltip").first()).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("copy buttons with data-copy-target are handled by the copy listener", async ({ page }) => {
+  await page.goto("/");
+  const ok = await page.evaluate(async () => {
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: async (t: string) => { (window as any).__copied = t; } }, configurable: true });
+    const code = document.createElement("code"); code.id = "tmp-src"; code.textContent = " hello ";
+    const b = document.createElement("button"); b.dataset.copyTarget = "#tmp-src";
+    document.body.append(code, b); b.click();
+    await new Promise((r) => setTimeout(r, 50));
+    return (window as any).__copied;
+  });
+  expect(ok).toBe("hello");
+});
