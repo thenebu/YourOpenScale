@@ -5,11 +5,18 @@
 !package-lock.json
 !server
 !connectors
+!web
 !docker
 # Re-exclude runtime data and secrets pulled back in by the re-includes above
 # (Docker does not honour .gitignore, so a local build could otherwise embed a
 # dev database, bootstrap token, or a deployment .env).
 server/data/
+web/dist/
+test-results/
+playwright-report/
+local/
+**/*.sqlite
+**/*.sqlite-*
 docker/data/
 docker/.env
 **/*.sqlite3
