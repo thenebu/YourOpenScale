@@ -1,6 +1,6 @@
 {
-  "name": "YourOwnWeigh",
-  "short_name": "YOW",
+  "name": "YourOpenScale",
+  "short_name": "YOS",
   "description": "Your weight and body composition, from your own scale.",
   "id": "/",
   "start_url": "/",

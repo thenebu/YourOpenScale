@@ -10,11 +10,29 @@ test("layout: nav items, active link, no app.css", () => {
   const h = page({}, "", "/readings");
   assert.doesNotMatch(h, /app\.css/);
   assert.match(h, /<nav class="app-nav"/);
-  for (const l of ["Dashboard", "Readings", "Users", "Scales", "Sync", "Settings", "Firmware"]) assert.match(h, new RegExp(`>${l}`));
+  for (const l of ["Dashboard", "Readings", "Manage", "Users", "Import from Withings", "Scales", "Firmware", "Health Sync", "Settings"]) assert.match(h, new RegExp(`>${l}`));
+  for (const g of ["People &amp; data", "Devices", "System"]) assert.match(h, new RegExp(`nav-group-title">${g}<`));
+  assert.match(h, /<details class="nav-dropdown nav-manage"><summary class="nav-link">Manage/);
   assert.match(h, /href="\/readings" aria-current="page"/);
   assert.match(h, /<details class="nav-menu">/);
   assert.match(h, /action="\/logout" method="post"[^>]*><input[^>]*value="tok"[\s\S]*?Sign out/);
   assert.match(h, /\/app\.js/);
+});
+
+test("layout: Manage is active when a child is current", () => {
+  const h = page({}, "", "/scales");
+  assert.match(h, /<summary class="nav-link" aria-current="page">Manage/);
+  assert.match(h, /<a href="\/scales" aria-current="page">Scales/);
+  assert.match(h, /<a class="nav-link" href="\/scales" aria-current="page">Scales/);
+  assert.doesNotMatch(page({}, "", "/readings"), /<summary class="nav-link" aria-current="page">Manage/);
+});
+
+test("layout: branding and footer", () => {
+  const h = page();
+  assert.match(h, /<title>T · YourOpenScale<\/title>/);
+  assert.match(h, /YourOpenScale · v\d+\.\d+\.\d+/);
+  assert.match(h, />Based on YourOwnWeigh</);
+  assert.doesNotMatch(h, /Web App v/);
 });
 
 test("layout: logged out has no links or sign out", () => {
@@ -33,11 +51,11 @@ test("layout: People dropdown needs two users", () => {
   const two = page({ users: [{ id: 1, name: "Al<ex>" }, { id: 2, name: "Sam" }] });
   assert.match(two, /<details class="nav-dropdown">/);
   assert.match(two, /href="\/users\/1\/overview">Al&lt;ex&gt;</);
-  assert.match(two, /nav-sheet-heading">People/);
+  assert.match(two, /nav-sheet-heading">Overviews/);
   const one = page({ users: [{ id: 7, name: "Solo" }] });
-  assert.doesNotMatch(one, /nav-dropdown/);
+  assert.doesNotMatch(one, /nav-dropdown">/);
   assert.match(one, /href="\/users\/7\/overview"[^>]*>Overview/);
-  assert.doesNotMatch(page({}), /Overview|nav-dropdown/);
+  assert.doesNotMatch(page({}), /Overview|nav-dropdown">/);
 });
 
 test("layout: theme attribute and footer links", () => {

@@ -41,8 +41,8 @@ const get = (env: AppEnv, path: string) => handleApp(new Request("https://local.
 
 test("manifest has the required fields and every icon exists with its declared size", () => {
   const m = JSON.parse(readFileSync(manifestPath, "utf8"));
-  assert.equal(m.name, "YourOwnWeigh");
-  assert.equal(m.short_name, "YOW");
+  assert.equal(m.name, "YourOpenScale");
+  assert.equal(m.short_name, "YOS");
   assert.equal(m.start_url, "/");
   assert.equal(m.scope, "/");
   assert.equal(m.display, "standalone");

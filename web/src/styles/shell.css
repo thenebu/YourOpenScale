@@ -118,12 +118,41 @@
 .nav-popover a:hover {
   background: var(--color-surface-sunken);
 }
+.nav-popover a[aria-current="page"] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-soft-text);
+  font-weight: 600;
+}
+.nav-manage {
+  margin-inline-start: auto;
+}
+.nav-manage .nav-popover {
+  left: auto;
+  right: 0;
+  min-width: 220px;
+  gap: 2px;
+}
+.nav-group {
+  display: grid;
+}
+.nav-group + .nav-group {
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--color-border);
+}
+.nav-group-title {
+  margin: var(--space-1) 12px 2px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
 .nav-dropdown[open] > summary .icon {
   transform: rotate(180deg);
 }
 .nav-signout {
   margin: 0;
-  margin-inline-start: auto;
 }
 .nav-signout button,
 .nav-sheet-signout button {

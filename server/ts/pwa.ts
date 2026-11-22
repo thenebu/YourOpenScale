@@ -26,8 +26,8 @@ const SECURITY = { "X-Content-Type-Options": "nosniff" };
 /** Static branded fallback page: no user data, works offline, no JS needed. */
 export function offlinePage(): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Offline · YourOwnWeigh</title><meta name="robots" content="noindex"><link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">${assetTags(["app"])}</head><body>
-<main class="offline"><img src="/icons/icon-192.png" width="96" height="96" alt=""><h1>You are offline</h1><p>YourOwnWeigh needs a connection to show your readings. Nothing is stored on this device while you are signed in.</p><p><a class="btn btn-primary" href="/">Retry</a></p></main></body></html>`;
+<title>Offline · YourOpenScale</title><meta name="robots" content="noindex"><link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">${assetTags(["app"])}</head><body>
+<main class="offline"><img src="/icons/icon-192.png" width="96" height="96" alt=""><h1>You are offline</h1><p>YourOpenScale needs a connection to show your readings. Nothing is stored on this device while you are signed in.</p><p><a class="btn btn-primary" href="/">Retry</a></p></main></body></html>`;
 }
 
 /** Everything the worker may precache. Hashed build files, icons, manifest and the offline page only. */

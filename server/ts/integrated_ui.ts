@@ -11,7 +11,7 @@ export function timeZoneSelect(name: string, value = "", id = ""): string {
 }
 
 export function firmwareWorkspace(csrf: string): string {
-  return `<div id="firmware-workspace" data-csrf="${e(csrf)}" data-local-roster-models="${Object.keys(SCALE_MODELS).filter((model) => SCALE_MODELS[model].localRoster).join(",")}">${pageHeader({ title: "Firmware bridge", subtitle: "Connect a scale over Bluetooth and install YourOwnWeigh firmware", actionsHtml: '<div id="bridge-connection" class="bridge-status is-offline"><span class="status-dot" aria-hidden="true"></span><span id="bridge-status-text" role="status">Python Bridge Not Connected</span><button type="button" id="revoke-bridge" class="text-button" title="Disconnect from this server. An active firmware transfer continues locally." hidden>Disconnect Bridge</button></div>' })}
+  return `<div id="firmware-workspace" data-csrf="${e(csrf)}" data-local-roster-models="${Object.keys(SCALE_MODELS).filter((model) => SCALE_MODELS[model].localRoster).join(",")}">${pageHeader({ title: "Firmware bridge", subtitle: "Connect a scale over Bluetooth and install YourOpenScale firmware", actionsHtml: '<div id="bridge-connection" class="bridge-status is-offline"><span class="status-dot" aria-hidden="true"></span><span id="bridge-status-text" role="status">Python Bridge Not Connected</span><button type="button" id="revoke-bridge" class="text-button" title="Disconnect from this server. An active firmware transfer continues locally." hidden>Disconnect Bridge</button></div>' })}
     <section id="bridge-offline"><h2>Connect The Python Bridge</h2>
       <p>Run the bridge on your Mac or Linux computer and leave it running while setting up a scale.</p>
       <ol><li>Install: <code>python3.11 -m venv .venv &amp;&amp; .venv/bin/pip install ./bridge</code></li>
@@ -39,7 +39,7 @@ export function firmwareWorkspace(csrf: string): string {
       <div class="firmware-grid">
         <section id="firmware-panel"><h2>Firmware</h2>
           <div class="form-block"><label>Target Model<select id="scale-model">${Object.entries(SCALE_MODELS).map(([v, m]) => `<option value="${v}">${m.label}</option>`).join("")}</select></label>
-          <p class="hint">Download stock firmware and generate YourOwnWeigh firmware. Files stay on the computer running the bridge.</p>
+          <p class="hint">Download stock firmware and generate YourOpenScale firmware. Files stay on the computer running the bridge.</p>
           <div class="action-row"><button id="generate-firmware" type="button">Generate Firmware For WBS06</button><label class="text-button file-link">Select Manually<input id="manual-firmware" type="file" accept=".bin" hidden></label></div></div>
           <div id="firmware-info" class="firmware-artifact" hidden></div>
           <p id="firmware-warning" class="notice" hidden></p>

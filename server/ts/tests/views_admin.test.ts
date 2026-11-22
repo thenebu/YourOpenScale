@@ -132,7 +132,7 @@ test("/readings: user filter, unassigned rows with actions, and name links", asy
 test("the Health Sync column appears only when a row on the page has an acknowledgement", async () => {
   const h = await harness(5);
   try {
-    assert.doesNotMatch(await (await h.send("/readings")).text(), /Health Sync/);
+    assert.doesNotMatch(await (await h.send("/readings")).text(), /<th[^>]*>Health Sync/);
     await h.db.prepare("INSERT INTO health_sync_receipts(reading_id,user_id,synced_at) VALUES(5,5,1700000000)").run();
     const html = await (await h.send("/readings")).text();
     assert.match(html, /<th scope="col">Health Sync<\/th>/);

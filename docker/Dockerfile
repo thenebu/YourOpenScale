@@ -1,7 +1,7 @@
-# YourOwnWeigh server image — one plain-HTTP listener, run behind your own
+# YourOpenScale server image — one plain-HTTP listener, run behind your own
 # reverse proxy. Built by the owner on the deploy host (no GHCR); from the repo
 # root:
-#   docker build -f docker/Dockerfile -t yow:ui-$(date +%Y%m%d) .
+#   docker build -f docker/Dockerfile -t yos-local:ui-$(date +%Y%m%d) .
 #
 # Two stages: `web` builds the Vite bundle (dev dependencies, build time only);
 # `runtime` is Node 24 + ws + Node built-ins (node:sqlite), types stripped at

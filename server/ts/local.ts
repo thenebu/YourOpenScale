@@ -291,7 +291,7 @@ export async function startLocal() {
     : createHttpServer(listener);
   bridge.attach(server, env, secure, allowedHosts, trustProxy);
   server.listen(port, host, () => {
-    console.log(`YourOwnWeigh: ${origin.origin}`);
+    console.log(`YourOpenScale: ${origin.origin}`);
     if (!initialized) console.log(`First-run bootstrap token: ${bootstrap}`);
   });
   // Optional separate scale-only listener behind a fixed-port proxy. It never
