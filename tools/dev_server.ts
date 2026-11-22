@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { WebSocketServer } from "ws";
 import { LocalSqlite } from "../server/ts/sqlite.ts";
 import { assets } from "../server/ts/local.ts";
 import { handleApp, type AppEnv } from "../server/ts/app.ts";
@@ -13,7 +14,13 @@ const port = Number(process.env.PORT ?? 8099);
 const TOKEN = "dummy-test-bootstrap-token";
 
 const store = new LocalSqlite(join(mkdtempSync(join(tmpdir(), "yow-dev-")), "dev.sqlite3"));
-const env: AppEnv = { DB: store.asD1(), YOW_BOOTSTRAP_TOKEN: TOKEN, ALLOW_HTTP_SCALE: true, ASSETS: assets() };
+const env: AppEnv = { DB: store.asD1(), YOW_BOOTSTRAP_TOKEN: TOKEN, ALLOW_HTTP_SCALE: true, ASSETS: assets(),
+  // Minimal stand-in for the Python bridge broker so /firmware can be exercised without hardware.
+  bridgeRequest: async (request) =>
+    request.method === "POST" && new URL(request.url).pathname === "/api/bridge/invitations"
+      ? Response.json({ server: "https://local.test", token: "dev-invitation-token", expires: 0 })
+      : Response.json({ error: "Bridge is unavailable in the synthetic dev server" }, { status: 503 }),
+};
 const call = (path: string, method = "GET", form?: URLSearchParams, cookie = "") =>
   handleApp(
     new Request("https://local.test" + path, {
@@ -73,12 +80,16 @@ await d
   .bind(JSON.stringify({ kg: 78, date: isoDay(-120), startKg: 88, startAt: now - 899 * 86400 }))
   .run();
 
-createServer(async (req, res) => {
+const wss = new WebSocketServer({ noServer: true });
+const server = createServer(async (req, res) => {
   const chunks: Buffer[] = [];
   for await (const c of req) chunks.push(c as Buffer);
   const hasBody = chunks.length > 0 && req.method !== "GET" && req.method !== "HEAD";
   const headers: Record<string, string> = { Cookie: cookie };
   if (req.headers["content-type"]) headers["Content-Type"] = String(req.headers["content-type"]);
+  // The app checks Origin and CSRF on POSTs; present the same origin the Request URL uses.
+  if (req.headers.origin) headers.Origin = "https://local.test";
+  if (req.headers["x-csrf-token"]) headers["X-CSRF-Token"] = String(req.headers["x-csrf-token"]);
   const out = await handleApp(
     new Request("https://local.test" + req.url, {
       method: req.method,
@@ -89,4 +100,11 @@ createServer(async (req, res) => {
   );
   res.writeHead(out.status, Object.fromEntries(out.headers));
   res.end(Buffer.from(await out.arrayBuffer()));
-}).listen(port, "127.0.0.1", () => console.log(`up http://127.0.0.1:${port}`));
+});
+server.on("upgrade", (req, socket, head) => {
+  if (req.url !== "/api/bridge/ui/socket") return socket.destroy();
+  wss.handleUpgrade(req, socket, head, (ws) =>
+    ws.send(JSON.stringify({ kind: "ready", clientId: "dev", connected: false, snapshot: { candidates: [], artifacts: [] } })),
+  );
+});
+server.listen(port, "127.0.0.1", () => console.log(`up http://127.0.0.1:${port}`));

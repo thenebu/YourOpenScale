@@ -1,5 +1,13 @@
 /** Scroll-spy for `.section-nav`: marks the link of the section in view with aria-current="location". */
 export function initSections(): void {
+  // The sticky controls grow when they wrap on narrow screens; keep anchors clear of them.
+  const bar = document.querySelector<HTMLElement>(".overview-controls");
+  if (bar && "ResizeObserver" in window) {
+    const NAV = 56;
+    const sync = () => document.documentElement.style.setProperty("--sticky-offset", `${Math.ceil(NAV + bar.offsetHeight + 16)}px`);
+    new ResizeObserver(sync).observe(bar);
+    sync();
+  }
   const navs = document.querySelectorAll<HTMLElement>(".section-nav");
   if (!navs.length || !("IntersectionObserver" in window)) return;
   for (const nav of navs) {

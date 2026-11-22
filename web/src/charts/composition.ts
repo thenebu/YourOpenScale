@@ -91,7 +91,7 @@ export function mountComposition(
         type: "time", gridIndex, min: t0 * 1000, max: t1 * 1000, show: true,
         axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
         axisLabel: { show: visible, hideOverlap: true, fontSize: 12, color: theme.axis, margin: 10,
-          formatter: { year: "{yyyy}", month: "{MMM} '{yy}", day: "{d} {MMM}", none: "{d} {MMM}" } },
+          formatter: { year: "{MMM} '{yy}", month: "{MMM} '{yy}", day: "{d} {MMM}", none: "{d} {MMM}" } },
         axisPointer: { type: "line", snap: true, label: { show: false }, lineStyle: { color: theme.crosshair, width: 1 } },
       });
       const yAxis = (lo: number, hi: number, gridIndex: number): Opt => {

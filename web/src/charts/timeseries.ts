@@ -328,7 +328,7 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
         data: BMI_BANDS.filter((band) => band.to > lo && band.from < hi).map((band) => [
           {
             yAxis: Math.max(lo, band.from), name: band.name, itemStyle: { color: theme[band.color] },
-            label: { show: true, position: "insideTopRight", color: theme.textSubtle, fontSize: 12 },
+            label: { show: true, position: "insideBottomLeft", color: theme.textSubtle, fontSize: 12 },
           },
           { yAxis: Math.min(hi, band.to) },
         ]),
@@ -367,7 +367,7 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
       axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
       axisLabel: {
         hideOverlap: true, fontSize: 12, color: theme.axis, margin: 10,
-        formatter: { year: "{yyyy}", month: "{MMM} '{yy}", day: "{d} {MMM}", hour: "{HH}:{mm}", minute: "{HH}:{mm}", second: "{HH}:{mm}:{ss}", millisecond: "{HH}:{mm}:{ss}", none: "{d} {MMM}" },
+        formatter: { year: "{MMM} '{yy}", month: "{MMM} '{yy}", day: "{d} {MMM}", hour: "{HH}:{mm}", minute: "{HH}:{mm}", second: "{HH}:{mm}:{ss}", millisecond: "{HH}:{mm}:{ss}", none: "{d} {MMM}" },
       },
       axisPointer: { type: "line", snap: true, label: { show: false }, lineStyle: { color: theme.crosshair, width: 1 } },
     },
