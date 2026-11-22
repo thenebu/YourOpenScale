@@ -15,6 +15,7 @@ import { randomBytes } from "node:crypto";
 import { isIP } from "node:net";
 import { LocalSqlite } from "./sqlite.ts";
 import { assetPath } from "./assets.ts";
+import { isPwaPath, pwaResponse } from "./pwa.ts";
 import { handleApp, type AppEnv } from "./app.ts";
 import { captureWithings, firmwareOffer } from "./withings_capture.ts";
 import { NodeBridge } from "./bridge_node.ts";
@@ -77,6 +78,7 @@ export function assets(): AppEnv["ASSETS"] {
     async fetch(request) {
       const pathname = new URL(request.url).pathname;
       if (pathname.startsWith("/assets/")) return builtAsset(pathname);
+      if (isPwaPath(pathname)) return pwaResponse(pathname); // WP-16: public, nothing private
       const filename = decodeURIComponent(
         new URL(request.url).pathname.slice(1),
       );

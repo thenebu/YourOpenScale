@@ -22,6 +22,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY server ./server
 COPY connectors ./connectors
+COPY web/public ./web/public
 COPY --from=web /app/web/dist ./web/dist
 
 # Run as the base image's unprivileged `node` user (uid 1000), never root

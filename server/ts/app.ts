@@ -208,7 +208,7 @@ function html(body: string, status = 200, cookie?: string): Response {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "Content-Security-Policy":
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; manifest-src 'self'; worker-src 'self'",
   });
   if (cookie) headers.set("Set-Cookie", cookie);
   return new Response(body, { status, headers });
@@ -1540,7 +1540,11 @@ export async function handleApp(
       "/firmware.js",
       "/favicon.png",
       "/YourOwnWeigh-Sync.shortcut",
+      "/sw.js",
+      "/manifest.webmanifest",
+      "/offline",
     ].includes(path) ||
+      path.startsWith("/icons/") ||
       path.startsWith("/assets/")) &&
     method === "GET"
   ) {

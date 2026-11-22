@@ -97,7 +97,7 @@ test("pages send the CSP and /assets routes through ASSETS", async () => {
   const res = await handleApp(new Request("https://local.test/setup"), env);
   assert.equal(
     res.headers.get("content-security-policy"),
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; manifest-src 'self'; worker-src 'self'",
   );
   await handleApp(new Request("https://local.test/assets/app-abc.js"), env);
   assert.equal(seen, "/assets/app-abc.js");

@@ -1,10 +1,12 @@
 import "../styles/index.css";
+import "../styles/pwa.css";
 import "@fontsource-variable/inter";
 import { initCopy } from "../enhance/copy.ts";
 import { initFlash } from "../enhance/flash.ts";
 import { initNav } from "../enhance/nav.ts";
 import { initSections } from "../enhance/sections.ts";
 import { initSubmitOnChange } from "../enhance/submit.ts";
+import { initPwa } from "../pwa/register.ts";
 import { initTheme } from "../enhance/theme.ts";
 
 document.documentElement.classList.add("js");
@@ -14,3 +16,4 @@ initFlash();
 initCopy();
 initSections();
 initSubmitOnChange();
+initPwa();
