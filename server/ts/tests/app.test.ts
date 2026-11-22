@@ -65,7 +65,7 @@ test("one TypeScript app serves dashboard, readings API and scale sync with SQLi
     csrf = /name="_csrf" value="([a-f0-9]+)"/.exec(await dashboard.text())![1];
     assert.match(
       await (await request("/settings")).text(),
-      /Sync API Password/,
+      /Sync API Password/i,
     );
     assert.equal(
       (await post("/settings", { purpose: "scale_api", action: "enable" }))
@@ -153,7 +153,7 @@ test("one TypeScript app serves dashboard, readings API and scale sync with SQLi
     assert.match(await (await request("/users")).text(), /Sam/);
     assert.match(
       await (await request("/settings")).text(),
-      /Sync API Password/,
+      /Sync API Password/i,
     );
 
     const once = await request(
@@ -219,7 +219,8 @@ test("one TypeScript app serves dashboard, readings API and scale sync with SQLi
     assert.match(dashboardHtml, /value="73.25"/);
     assert.match(dashboardHtml, /73\.3/);
     assert.match(await (await request("/readings")).text(), /73\.25 kg/);
-    assert.match(await (await request("/readings")).text(), /Not Acknowledged/);
+    // WP-14: the Health Sync column only appears once a reading on the page is acknowledged.
+    assert.doesNotMatch(await (await request("/readings")).text(), /Health Sync/);
     const api = await handleApp(
       new Request("https://local.test/api/users/1/weights", {
         headers: { Authorization: `Basic ${btoa("reader:reader-password")}` },
@@ -540,7 +541,7 @@ test("reviewed capture can stage users and fixtures without sending a roster", a
     };
     assert.match(
       await (await get("/users")).text(),
-      /Fetch From Withings/,
+      /Fetch From Withings/i,
     );
     const fetched = await post("/users/fetch-withings", {
       scale_id: "1",
@@ -561,7 +562,7 @@ test("reviewed capture can stage users and fixtures without sending a roster", a
     assert.equal(staged.status, 303);
     const preview = await get("/users?preview_scale=1");
     const page = await preview.text();
-    assert.match(page, /Import Users From/);
+    assert.match(page, /Import Users From/i);
     assert.match(page, /Device settings are ready/);
     const digest = /name="capture_digest" value="([a-f0-9]+)"/.exec(page)![1];
     const imported = await post("/users/import-withings/confirm", {

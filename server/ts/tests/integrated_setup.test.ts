@@ -64,7 +64,7 @@ test("two-stage bootstrap, integrated navigation, automatic model-safe enrollmen
     return text;
   };
   try {
-    assert.match(await page("/setup"), /Bootstrap Token/);
+    assert.match(await page("/setup"), /Bootstrap Token/i);
     assert.equal(
       (
         await send(
@@ -77,7 +77,7 @@ test("two-stage bootstrap, integrated navigation, automatic model-safe enrollmen
       ).status,
       303,
     );
-    assert.match(await page("/setup"), /Set Your Password/);
+    assert.match(await page("/setup"), /Set Your Password/i);
     assert.equal(
       (
         await send(
@@ -97,7 +97,7 @@ test("two-stage bootstrap, integrated navigation, automatic model-safe enrollmen
     assert.match(dashboard, /Connect a scale/);
     assert.doesNotMatch(dashboard, />Admin<|Device Config/);
     const scales = await page("/scales");
-    assert.match(scales, /<h1>Scales<\/h1>/);
+    assert.match(scales, /<h1[^>]*>Scales<\/h1>/);
     assert.doesNotMatch(scales, /firmware-workspace/);
     assert.match(await page("/firmware"), /Connect The Python Bridge/);
     assert.doesNotMatch(scales, />Registered Devices</);

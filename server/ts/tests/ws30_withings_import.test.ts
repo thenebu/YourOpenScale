@@ -100,7 +100,7 @@ test("WS-30 captured users pass the current importer and leave the minimal v101 
     assert.match(fetched.headers.get("location") ?? "", /preview_scale=1/);
     assert.equal(fetchCount, 1);
     const page = await (await get("/users?preview_scale=1")).text();
-    assert.match(page, /Import Users From/);
+    assert.match(page, /Import Users From/i);
     const digest = /name="capture_digest" value="([a-f0-9]+)"/.exec(page)?.[1];
     assert.ok(digest, "Real response shape must pass capture normalization and produce a preview");
     const imported = await post("/users/import-withings/confirm", { scale_id: "1", capture_digest: digest });

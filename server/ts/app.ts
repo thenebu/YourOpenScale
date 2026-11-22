@@ -5,7 +5,8 @@ import {
   observedMetrics,
   storedMeasures,
 } from "./metrics.ts";
-import { activeUsers, countUnassigned } from "./data/readings_query.ts";
+import { activeUsers, countUnassigned, loadReadings } from "./data/readings_query.ts";
+import { flagOutliers } from "./analysis/quality.ts";
 import { handleForkRoute } from "./routes/index.ts";
 import { themeFromCookie } from "./routes/util.ts";
 import {
@@ -38,6 +39,7 @@ import {
   escapeHtml,
   layout,
   loginPage,
+  pageHref,
   readingsPage,
   setupPage,
   withingsImportPage,
@@ -362,6 +364,61 @@ function dateAge(value: string): number {
 }
 const readingOrder =
   "CASE WHEN r.time_quality='trusted' THEN r.meastime ELSE r.first_received_at END DESC,r.id DESC";
+const READINGS_PAGE_SIZE = 50;
+const USER_READINGS_PAGE_SIZE = 100;
+const READING_TIME =
+  "(CASE WHEN r.time_quality='trusted' THEN r.meastime ELSE r.first_received_at END)";
+/**
+ * Keyset page over readings, newest first (`readingOrder`): `before=<id>` returns the rows after that reading
+ * (older), `after=<id>` the rows before it (newer). Ties on time break on id, so no row is skipped or repeated.
+ */
+async function readingsKeyset(
+  db: D1Database,
+  url: URL,
+  size: number,
+  select: string,
+  where: string,
+  args: (string | number)[],
+): Promise<{ rows: Row[]; hasOlder: boolean; hasNewer: boolean }> {
+  const idParam = (name: string) => {
+    const v = url.searchParams.get(name);
+    return v && /^\d{1,15}$/.test(v) ? Number(v) : null;
+  };
+  const before = idParam("before");
+  const after = before === null ? idParam("after") : null;
+  const cursorId = before ?? after;
+  const cursor =
+    cursorId === null
+      ? null
+      : await one(
+          db,
+          "SELECT (CASE WHEN time_quality='trusted' THEN meastime ELSE first_received_at END) AS t FROM readings WHERE id=?",
+          cursorId,
+        );
+  const olderThan = cursor && before !== null;
+  const newerThan = cursor && after !== null;
+  const found = await rows(
+    db,
+    `${select} WHERE ${where}${
+      olderThan
+        ? ` AND (${READING_TIME}<? OR (${READING_TIME}=? AND r.id<?))`
+        : newerThan
+          ? ` AND (${READING_TIME}>? OR (${READING_TIME}=? AND r.id>?))`
+          : ""
+    } ORDER BY ${newerThan ? READING_TIME + " ASC,r.id ASC" : readingOrder} LIMIT ?`,
+    ...args,
+    ...(cursor ? [Number(cursor.t), Number(cursor.t), cursorId!] : []),
+    size + 1,
+  );
+  const more = found.length > size;
+  const page = found.slice(0, size);
+  if (newerThan) page.reverse();
+  return {
+    rows: page,
+    hasOlder: newerThan ? true : more,
+    hasNewer: newerThan ? more : !!olderThan,
+  };
+}
 function safeError(error: unknown): string {
   return error instanceof Error
     ? error.message.slice(0, 180)
@@ -1909,24 +1966,58 @@ export async function handleApp(
       db,
       "SELECT id,name FROM users WHERE active=1 ORDER BY name,id",
     );
-    const readings = await rows(
+    const userParam = url.searchParams.get("user") ?? "all";
+    const userFilter =
+      userParam === "unassigned" || users.some((u) => String(u.id) === userParam)
+        ? userParam
+        : "all";
+    const unassignedCount = await countUnassigned(db);
+    const metricWhere =
+      metric === 1
+        ? "r.weight_value IS NOT NULL"
+        : "EXISTS (SELECT 1 FROM json_each(r.measures_json) m WHERE json_extract(m.value,'$.type')=?)";
+    const keyset = await readingsKeyset(
       db,
+      url,
+      READINGS_PAGE_SIZE,
       `SELECT r.*,s.label AS scale_label,u.name AS user_name,
       h.synced_at AS health_sync_acknowledged_at FROM readings r JOIN scales s ON s.id=r.scale_id
-      LEFT JOIN users u ON u.id=r.user_id LEFT JOIN health_sync_receipts h ON h.reading_id=r.id AND h.user_id=r.user_id
-      WHERE ${metric === 1 ? "r.weight_value IS NOT NULL" : "EXISTS (SELECT 1 FROM json_each(r.measures_json) m WHERE json_extract(m.value,'$.type')=?)"}
-      ORDER BY ${readingOrder} LIMIT 10`,
-      ...(metric === 1 ? [] : [metric]),
+      LEFT JOIN users u ON u.id=r.user_id LEFT JOIN health_sync_receipts h ON h.reading_id=r.id AND h.user_id=r.user_id`,
+      `${metricWhere}${userFilter === "unassigned" ? " AND r.user_id IS NULL" : userFilter === "all" ? "" : " AND r.user_id=?"}`,
+      [
+        ...(metric === 1 ? [] : [metric]),
+        ...(userFilter === "all" || userFilter === "unassigned" ? [] : [Number(userFilter)]),
+      ],
     );
+    const link = (cursor: string) =>
+      pageHref("/readings", {
+        metric: metric === 1 ? null : metric,
+        user: userFilter === "all" ? null : userFilter,
+        ...Object.fromEntries([cursor.split("=")]),
+      });
+    const first = keyset.rows[0];
+    const last = keyset.rows.at(-1);
     return page(
       "Readings",
       readingsPage(
-        readings,
+        keyset.rows,
         users,
         (await setting(db, "display_weight_unit")) ?? "kg",
         csrf,
         metrics,
         metric,
+        {
+          filter: {
+            value: userFilter,
+            items: [
+              { value: "all", label: "All" },
+              ...users.map((u) => ({ value: String(u.id), label: String(u.name) })),
+              { value: "unassigned", label: "Unassigned", count: unassignedCount },
+            ],
+          },
+          newer: keyset.hasNewer && first ? link(`after=${first.id}`) : undefined,
+          older: keyset.hasOlder && last ? link(`before=${last.id}`) : undefined,
+        },
       ),
       "/readings",
     );
@@ -1942,23 +2033,46 @@ export async function handleApp(
     const metric =
       metrics.find((m) => m.type === Number(url.searchParams.get("metric")))
         ?.type ?? 1;
-    const readings = await rows(
+    const outliersOnly = url.searchParams.get("outliers") === "1";
+    // Same quality.ts function as the overview, run on the user's full history so edge rows keep their context.
+    const flagged = flagOutliers(await loadReadings(db, id, 0), metric);
+    const flagIds = [...flagged.keys()].filter((v) => Number.isSafeInteger(v));
+    const metricWhere =
+      metric === 1
+        ? "r.weight_value IS NOT NULL"
+        : "EXISTS (SELECT 1 FROM json_each(r.measures_json) m WHERE json_extract(m.value,'$.type')=?)";
+    const keyset = await readingsKeyset(
       db,
+      url,
+      USER_READINGS_PAGE_SIZE,
       `SELECT r.*,s.label AS scale_label,h.synced_at AS health_sync_acknowledged_at
       FROM readings r JOIN scales s ON s.id=r.scale_id
-      LEFT JOIN health_sync_receipts h ON h.reading_id=r.id AND h.user_id=r.user_id
-      WHERE r.user_id=? AND ${metric === 1 ? "r.weight_value IS NOT NULL" : "EXISTS (SELECT 1 FROM json_each(r.measures_json) m WHERE json_extract(m.value,'$.type')=?)"} ORDER BY ${readingOrder}`,
-      id,
-      ...(metric === 1 ? [] : [metric]),
+      LEFT JOIN health_sync_receipts h ON h.reading_id=r.id AND h.user_id=r.user_id`,
+      `r.user_id=? AND ${metricWhere}${outliersOnly ? ` AND r.id IN (${flagIds.length ? flagIds.join(",") : "NULL"})` : ""}`,
+      [id, ...(metric === 1 ? [] : [metric])],
     );
+    const link = (cursor: string) =>
+      pageHref(`/users/${id}/readings`, {
+        metric: metric === 1 ? null : metric,
+        outliers: outliersOnly ? 1 : null,
+        ...Object.fromEntries([cursor.split("=")]),
+      });
+    const first = keyset.rows[0];
+    const last = keyset.rows.at(-1);
     return page(
-      `${user.name} Readings`,
+      `${user.name} raw readings`,
       userReadingsPage(
         user,
-        readings,
+        keyset.rows,
         (await setting(db, "display_weight_unit")) ?? "kg",
         metrics,
         metric,
+        {
+          flags: flagged,
+          outliersOnly,
+          newer: keyset.hasNewer && first ? link(`after=${first.id}`) : undefined,
+          older: keyset.hasOlder && last ? link(`before=${last.id}`) : undefined,
+        },
       ),
       "/readings",
     );
@@ -2110,6 +2224,7 @@ export async function handleApp(
         (await setting(db, "display_weight_unit")) ?? "kg",
         mode === "separate" ||
           (mode === null && !!(await setting(db, "api_password"))),
+        themeFromCookie(request),
       ),
       "/settings",
     );
