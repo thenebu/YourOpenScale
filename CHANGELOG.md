@@ -6,6 +6,14 @@ All notable changes to YourOpenScale are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-22
+
+### Changed
+- Goal projection no longer assumes a straight line. Since the goal start it fits a flattening curve (fast progress first, slower later), so the predicted date is more realistic. Short or straight histories still use the linear rate.
+
+### Added
+- New projection status "levels off": when the goal lies beyond the level the curve settles at, the card shows that level instead of a date.
+
 ## [1.0.0] - 2026-11-22
 
 First release of YourOpenScale, a fork of YourOwnWeigh by Tom Anthony (MIT).
