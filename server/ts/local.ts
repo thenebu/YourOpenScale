@@ -16,7 +16,7 @@ import { isIP } from "node:net";
 import { LocalSqlite } from "./sqlite.ts";
 import { assetPath } from "./assets.ts";
 import { isPwaPath, pwaResponse } from "./pwa.ts";
-import { handleApp, type AppEnv } from "./app.ts";
+import { bodyLimit, handleApp, type AppEnv } from "./app.ts";
 import { captureWithings, firmwareOffer } from "./withings_capture.ts";
 import { NodeBridge } from "./bridge_node.ts";
 import { forwardedScheme, isTrustedProxyPeer } from "./proxy.ts";
@@ -171,8 +171,7 @@ export function localListener(
     try {
       let size = 0;
       const chunks: Buffer[] = [];
-      const limit =
-        url.pathname === "/api/backup/import" ? 10 * 1024 * 1024 : 256000;
+      const limit = bodyLimit(url.pathname);
       for await (const chunk of incoming) {
         size += chunk.length;
         if (size > limit) {

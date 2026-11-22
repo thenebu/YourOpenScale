@@ -1582,6 +1582,14 @@ async function integratedApi(request: Request, env: AppEnv): Promise<Response> {
   return json({ error: "Not found" }, 404);
 }
 
+/** Largest accepted request body: backups 10 MiB, Withings export ZIPs 32 MiB (the
+ * Health Mate export is ~10 MiB because of raw tracker CSVs), everything else 256 kB. */
+export function bodyLimit(path: string): number {
+  if (path === "/api/backup/import") return 10 * 1024 * 1024;
+  if (path === "/import/withings") return 32 * 1024 * 1024;
+  return 256000;
+}
+
 export async function handleApp(
   request: Request,
   env: AppEnv,
@@ -1658,7 +1666,7 @@ export async function handleApp(
   if (
     request.headers.has("Content-Length") &&
     Number(request.headers.get("Content-Length")) >
-      (path === "/api/backup/import" ? 10 * 1024 * 1024 : 256000)
+      bodyLimit(path)
   ) {
     return new Response("Request too large", { status: 413 });
   }
