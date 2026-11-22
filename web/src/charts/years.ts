@@ -1,4 +1,5 @@
 /** Year overlay (03 §5): one line per year over a Jan-Dec axis, current year in the accent colour, older years fading grey. */
+import { extent } from "./extent.ts";
 import { formatMetric, toDisplay } from "@analysis/format.ts";
 import { specFor } from "@analysis/spec.ts";
 import type { Unit, YearSeries } from "@analysis/types.ts";
@@ -64,8 +65,7 @@ export function mountYearOverlay(el: HTMLElement, years: YearSeries[], ctx: Year
     },
     build: (theme) => {
       const all = list.flatMap((y) => y.points.map((p) => disp(p.v)));
-      const lo = Math.min(...all);
-      const hi = Math.max(...all);
+      const [lo, hi] = extent(all);
       const pad = Math.max((hi - lo) * 0.08, 0.1);
       const ax = niceAxis(lo - pad, hi + pad, 4);
       const right = el.clientWidth < 560 ? 40 : 48;

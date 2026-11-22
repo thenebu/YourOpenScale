@@ -1,4 +1,5 @@
 /** Body composition charts (03 §4.13/§5): fat vs lean trend lines, and monthly stacked bars. */
+import { extent } from "./extent.ts";
 import { formatMass, toDisplay } from "@analysis/format.ts";
 import { trendAt } from "@analysis/trend.ts";
 import type { MetricAnalysis, Unit } from "@analysis/types.ts";
@@ -46,6 +47,7 @@ export function mountComposition(
     return d?.v ?? null;
   };
   const tip = (i: number): Tip => {
+    if (!nav[i]) return { title: "", rows: [], notes: [] };
     const t = nav[i].t;
     const rows: Tip["rows"] = [];
     const notes: string[] = [];
@@ -74,7 +76,7 @@ export function mountComposition(
       const right = el.clientWidth < 560 ? 80 : 92;
       const ext = (m: MetricAnalysis) => {
         const vs = [...m.trend.map((p) => disp(p.v)), ...m.lod.daily.map((d) => disp(d.v))];
-        return [Math.min(...vs), Math.max(...vs)] as [number, number];
+        return extent(vs);
       };
       const series = (m: MetricAnalysis, color: string, name: string, xi: number, yi: number): Opt[] => [
         {

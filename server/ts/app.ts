@@ -2850,6 +2850,7 @@ async function browserPost(
         db.prepare("UPDATE events SET user_id=NULL WHERE user_id=?").bind(id),
         db.prepare("DELETE FROM scale_users WHERE user_id=?").bind(id),
         db.prepare("DELETE FROM users WHERE id=?").bind(id),
+        db.prepare("DELETE FROM settings WHERE key=?").bind(`goal:${id}`),
         saveSetting(
           db,
           "next_local_user_id",

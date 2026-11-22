@@ -1,4 +1,5 @@
 /** User overview view (WP-12): 02 §5. Pure string rendering; no node:*, no DB, no clock. */
+import { extent } from "../analysis/extent.ts";
 import { formatDate, formatDelta, formatMass, formatMetric, formatRate, toDisplay } from "../analysis/format.ts";
 import { dayNoonUtc } from "../analysis/time.ts";
 import type {
@@ -90,8 +91,7 @@ function sparkFallback(m: MetricAnalysis): string {
   const step = Math.ceil(pts.length / 80);
   pts = pts.filter((_, i) => i % step === 0 || i === pts.length - 1);
   const [t0, t1] = [pts[0][0], pts[pts.length - 1][0]];
-  let lo = Math.min(...pts.map((p) => p[1]));
-  let hi = Math.max(...pts.map((p) => p[1]));
+  let [lo, hi] = extent(pts.map((p) => p[1]));
   if (hi === lo) { lo -= 1; hi += 1; }
   const x = (t: number) => (4 + ((t - t0) / Math.max(1, t1 - t0)) * 192).toFixed(1);
   const y = (v: number) => (6 + (1 - (v - lo) / (hi - lo)) * 48).toFixed(1);
@@ -304,7 +304,7 @@ function goalCard(a: UserAnalysis, ctx: OverviewCtx): string {
   const unit = a.unit;
   const decimals = unit === "st" ? 2 : 1;
   const shown = g ? toDisplay(g.kg, unit).toFixed(decimals) : "";
-  const form = `<form class="goal-form" method="post" action="/users/${a.user.id}/goal"><input type="hidden" name="_csrf" value="${e(ctx.csrf)}"><label>Goal weight (${e(unit === "st" ? "decimal stones" : unitText(unit))})<input type="number" name="goal_weight" inputmode="decimal" step="0.1" min="0" value="${e(shown)}" placeholder="${e(unit === "kg" ? "78.0" : unit === "lb" ? "172.0" : "12.3")}"></label><label>Target date (optional)<input type="date" name="goal_date" value="${e(g?.date ?? "")}"></label><p class="hint">Leave the weight empty and save to remove the goal.</p><button class="btn btn-primary btn-sm" type="submit">Save goal</button></form>`;
+  const form = `<form class="goal-form" method="post" action="/users/${a.user.id}/goal"><input type="hidden" name="_csrf" value="${e(ctx.csrf)}"><label>Goal weight (${e(unit === "st" ? "decimal stones" : unitText(unit))})<input type="number" name="goal_weight" inputmode="decimal" step="any" min="0" value="${e(shown)}" placeholder="${e(unit === "kg" ? "78.0" : unit === "lb" ? "172.0" : "12.3")}"></label><label>Target date (optional)<input type="date" name="goal_date" value="${e(g?.date ?? "")}"></label><p class="hint">Leave the weight empty and save to remove the goal.</p><button class="btn btn-primary btn-sm" type="submit">Save goal</button></form>`;
   let head = "";
   if (g) {
     const pr = a.progress;

@@ -735,7 +735,15 @@ test("reviewed capture can stage users and fixtures without sending a roster", a
       classicModal,
       /name="feature_mask"|name="roster_enabled"/,
     );
+    await store
+      .asD1()
+      .prepare("INSERT OR REPLACE INTO settings(key,value) VALUES('goal:17','{\"kg\":70}')")
+      .run();
     assert.equal((await post("/users/17/delete", {})).status, 303);
+    assert.equal(
+      await store.asD1().prepare("SELECT value FROM settings WHERE key='goal:17'").first(),
+      null,
+    );
     assert.equal(
       (
         await store

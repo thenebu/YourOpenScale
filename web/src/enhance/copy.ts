@@ -1,4 +1,4 @@
-/** `[data-copy]` buttons copy their value (or the text of `data-copy-target`) and show a toast. */
+/** `[data-copy]` and `[data-copy-target]` buttons copy their value (or the text of `data-copy-target`) and show a toast. */
 function region(): HTMLElement {
   let el = document.querySelector<HTMLElement>(".toast-region");
   if (!el) {
@@ -23,7 +23,7 @@ export function toast(text: string, tone: "good" | "warn" | "bad" | "info" = "go
 
 export function initCopy(): void {
   document.addEventListener("click", async (event) => {
-    const button = (event.target as Element | null)?.closest<HTMLElement>("[data-copy]");
+    const button = (event.target as Element | null)?.closest<HTMLElement>("[data-copy],[data-copy-target]");
     if (!button) return;
     const targetSel = button.dataset.copyTarget;
     const source = targetSel ? document.querySelector<HTMLElement>(targetSel) : null;

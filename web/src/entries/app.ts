@@ -6,7 +6,6 @@ import { initFlash } from "../enhance/flash.ts";
 import { initNav } from "../enhance/nav.ts";
 import { initScrollable } from "../enhance/scrollable.ts";
 import { initSections } from "../enhance/sections.ts";
-import { initSubmitOnChange } from "../enhance/submit.ts";
 import { initPwa } from "../pwa/register.ts";
 import { initTheme } from "../enhance/theme.ts";
 
@@ -17,5 +16,4 @@ initFlash();
 initCopy();
 initSections();
 initScrollable();
-initSubmitOnChange();
 initPwa();

@@ -2,6 +2,7 @@
  * Time-series chart (01 §B5, 03 §4.3/§5): LOD dots, min-max / IQR bands, trend, compare overlay,
  * outlier rings, latest/min/max marks, goal line, BMI bands, tooltip, keyboard, reset zoom.
  */
+import { extent } from "./extent.ts";
 import { formatDate, formatDelta, formatMetric, toDisplay } from "@analysis/format.ts";
 import { specFor } from "@analysis/spec.ts";
 import { yExtent } from "@analysis/series.ts";
@@ -100,8 +101,7 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
     ...metric.trend.slice(0, 1).map((p) => p.t), ...metric.trend.slice(-1).map((p) => p.t),
     ...(ctx.range ?? []),
   ];
-  let dMin = ends.length ? Math.min(...ends) : 0;
-  let dMax = ends.length ? Math.max(...ends) : DAY;
+  let [dMin, dMax] = ends.length ? extent(ends) : [0, DAY];
   if (ctx.range) [dMin, dMax] = [Math.min(dMin, ctx.range[0]), Math.max(dMax, ctx.range[1])];
   if (dMax - dMin < DAY) dMax = dMin + DAY;
   const minSpan = Math.min(7 * DAY, dMax - dMin);

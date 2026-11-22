@@ -77,7 +77,7 @@ test("/theme sets and clears the cookie with 303", async () => {
 });
 
 test("/theme open-redirect guard and referer fallback", async () => {
-  for (const back of ["//evil.test", "https://evil.test/", "/\\evil.test", "evil", "/a\r\nX"]) {
+  for (const back of ["//evil.test", "//evil.com", "https://evil.test/", "/\\evil.test", "/\\evil.com", "evil", "/a\r\nX", "/.//evil.com", "/..//evil.com", "/a/..//evil.com", "javascript:alert(1)"]) {
     const r = (await handleShellRoute(ctx(`/theme?set=light&back=${encodeURIComponent(back)}`)))!;
     assert.equal(r.headers.get("Location"), "/", back);
   }

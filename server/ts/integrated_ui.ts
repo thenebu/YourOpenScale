@@ -106,7 +106,7 @@ export function scalesWorkspace(
       <div class="card-footer"><button type="button" class="btn btn-secondary btn-sm" data-open-dialog="edit-device-${e(s.id)}">Edit Settings</button></div></section>`,
             )
             .join("")
-        : '<section class="card empty-state"><p class="empty-title">No scales yet</p>${buttonLink("/firmware", "Connect a scale")}</section>'
+        : `<section class="card empty-state"><p class="empty-title">No scales yet</p>${buttonLink("/firmware", "Connect a scale")}</section>`
     }</div>
     ${scales.map((s) => editDevice(s, csrf, users)).join("")}
     <div class="page-footer"><button class="btn btn-ghost" type="button" data-open-dialog="device-file-dialog">Import Device File</button></div>
