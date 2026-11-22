@@ -15,21 +15,24 @@
       --chart-grid:#e6eced; --chart-axis:#5f7378; --chart-raw:#087a768c; --chart-trend:#087a76; --chart-band:#087a761f; --chart-goal:#9a5b00;
       --chart-outlier:#b3261e; --chart-crosshair:#4d5f64; --chart-fat:#c4581b; --chart-lean:#2f6db5; --chart-muscle:#12896a;
       --chart-water:#3a9bd5; --chart-bone:#8a6fb0; --chart-hr:#b4487f; --chart-compare:#8a9da1;
-      --chart-bmi-under:#e8f0fb; --chart-bmi-normal:#e3f4f1; --chart-bmi-over:#fff4e0; --chart-bmi-obese:#fdeceb; }
+      --chart-bmi-under:#e8f0fb; --chart-bmi-normal:#e3f4f1; --chart-bmi-over:#fff4e0; --chart-bmi-obese:#fdeceb;
+      --chart-heat-0:#eef3f4; --chart-heat-1:#c7e8e3; --chart-heat-2:#8fd0c6; --chart-heat-3:#3fb0a5; --chart-heat-4:#087a76; }
     @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark;
       --color-bg:#0f1a1e; --color-surface:#16232a; --color-surface-raised:#1c2b33; --color-surface-sunken:#0b1417; --color-border:#263439;
       --color-text:#e6eef0; --color-text-muted:#a9babe; --color-text-subtle:#8a9ea3; --color-accent:#5fd4c8; --color-link:#6fdacf;
       --color-focus:#5fd4c8; --color-warn:#f2b45a;
       --chart-grid:#223036; --chart-axis:#8a9ea3; --chart-raw:#5fd4c88c; --chart-trend:#5fd4c8; --chart-band:#5fd4c829; --chart-goal:#f2b45a;
       --chart-outlier:#ff8a80; --chart-crosshair:#a9babe; --chart-compare:#5b7076;
-      --chart-bmi-under:#16263d; --chart-bmi-normal:#123b3a; --chart-bmi-over:#3a2a10; --chart-bmi-obese:#3d1a19; } }
+      --chart-bmi-under:#16263d; --chart-bmi-normal:#123b3a; --chart-bmi-over:#3a2a10; --chart-bmi-obese:#3d1a19;
+      --chart-heat-0:#16232a; --chart-heat-1:#1d4a4a; --chart-heat-2:#2b7a76; --chart-heat-3:#45b0a6; --chart-heat-4:#8ae8dc; } }
     :root[data-theme="dark"] { color-scheme: dark;
       --color-bg:#0f1a1e; --color-surface:#16232a; --color-surface-raised:#1c2b33; --color-surface-sunken:#0b1417; --color-border:#263439;
       --color-text:#e6eef0; --color-text-muted:#a9babe; --color-text-subtle:#8a9ea3; --color-accent:#5fd4c8; --color-link:#6fdacf;
       --color-focus:#5fd4c8; --color-warn:#f2b45a;
       --chart-grid:#223036; --chart-axis:#8a9ea3; --chart-raw:#5fd4c88c; --chart-trend:#5fd4c8; --chart-band:#5fd4c829; --chart-goal:#f2b45a;
       --chart-outlier:#ff8a80; --chart-crosshair:#a9babe; --chart-compare:#5b7076;
-      --chart-bmi-under:#16263d; --chart-bmi-normal:#123b3a; --chart-bmi-over:#3a2a10; --chart-bmi-obese:#3d1a19; }
+      --chart-bmi-under:#16263d; --chart-bmi-normal:#123b3a; --chart-bmi-over:#3a2a10; --chart-bmi-obese:#3d1a19;
+      --chart-heat-0:#16232a; --chart-heat-1:#1d4a4a; --chart-heat-2:#2b7a76; --chart-heat-3:#45b0a6; --chart-heat-4:#8ae8dc; }
 
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--color-bg); color: var(--color-text); font: 16px/1.5 var(--font-sans); }
@@ -81,6 +84,45 @@
       <figure class="chart-card card">
         <h3 class="chart-title">Bone mass</h3>
         <div class="chart" data-island="timeseries" data-payload="analysis" data-metric="bone_mass_kg" data-compact><div class="chart-fallback">Loading chart…</div></div>
+      </figure>
+    </div>
+    <!-- WP-09 chart kinds -->
+    <div class="grid" id="kinds">
+      <figure class="chart-card card" style="grid-column: 1 / -1">
+        <h3 class="chart-title">Weekly rate of change</h3>
+        <div class="chart" data-island="diverging-bars" data-payload="analysis" ><div class="chart-fallback">Loading chart…</div></div>
+      </figure>
+      <figure class="chart-card card">
+        <h3 class="chart-title">Weight by weekday</h3>
+        <div class="chart" data-island="effect-bars" data-payload="analysis" data-kind="weekday"><div class="chart-fallback">Loading chart…</div></div>
+      </figure>
+      <figure class="chart-card card">
+        <h3 class="chart-title">Weight by time of day</h3>
+        <div class="chart" data-island="effect-bars" data-payload="analysis" data-kind="timeofday"><div class="chart-fallback">Loading chart…</div></div>
+      </figure>
+      <figure class="chart-card card">
+        <h3 class="chart-title">Weigh-ins by hour</h3>
+        <div class="chart" data-island="count-bars" data-payload="analysis" ><div class="chart-fallback">Loading chart…</div></div>
+      </figure>
+      <figure class="chart-card card">
+        <h3 class="chart-title">Distribution of daily weights</h3>
+        <div class="chart" data-island="histogram" data-payload="analysis" ><div class="chart-fallback">Loading chart…</div></div>
+      </figure>
+      <figure class="chart-card card">
+        <h3 class="chart-title">Fat and lean mass</h3>
+        <div class="chart" data-island="composition" data-payload="analysis" ><div class="chart-fallback">Loading chart…</div></div>
+      </figure>
+      <figure class="chart-card card">
+        <h3 class="chart-title">Monthly composition</h3>
+        <div class="chart" data-island="composition-bars" data-payload="analysis" ><div class="chart-fallback">Loading chart…</div></div>
+      </figure>
+      <figure class="chart-card card">
+        <h3 class="chart-title">Weight, year by year</h3>
+        <div class="chart" data-island="years" data-payload="analysis" ><div class="chart-fallback">Loading chart…</div></div>
+      </figure>
+      <figure class="chart-card card" style="grid-column: 1 / -1">
+        <h3 class="chart-title">Weigh-in calendar</h3>
+        <div class="chart" data-island="calendar" data-payload="analysis" ><div class="chart-fallback">Loading chart…</div></div>
       </figure>
     </div>
     <p id="stats"></p>
