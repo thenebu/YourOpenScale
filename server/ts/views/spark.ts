@@ -1,4 +1,5 @@
 /** Server-rendered micro charts (WP-11). Pure; no text elements, so they stay legible at any scale. */
+import { extent } from "../analysis/extent.ts";
 import type { Point, TrendPoint } from "../analysis/types.ts";
 
 const r1 = (n: number): number => Math.round(n * 10) / 10;
@@ -36,8 +37,7 @@ export function miniTrend(input: MiniTrendInput): string {
   if (!daily.length && !trend.length) return "";
 
   const all = [...daily, ...trend].map((p) => p.v);
-  let lo = Math.min(...all);
-  let hi = Math.max(...all);
+  let [lo, hi] = extent(all);
   const span = Math.max(hi - lo, 1);
   const goal = input.goalKg !== null && Number.isFinite(input.goalKg) ? input.goalKg : null;
   const goalShown = goal !== null && goal >= lo - span / 2 && goal <= hi + span / 2;
@@ -53,8 +53,8 @@ export function miniTrend(input: MiniTrendInput): string {
   const padX = 4;
   const padY = 8;
   const ts = [...daily, ...trend].map((p) => p.t);
-  const from = Number.isFinite(input.from) ? input.from : Math.min(...ts);
-  let to = Number.isFinite(input.to) ? input.to : Math.max(...ts);
+  const from = Number.isFinite(input.from) ? input.from : extent(ts)[0];
+  let to = Number.isFinite(input.to) ? input.to : extent(ts)[1];
   const tSpan = to > from ? to - from : 0;
   to = from + tSpan;
   const x = (t: number): number => r1(tSpan ? padX + ((Math.min(Math.max(t, from), to) - from) / tSpan) * (W - 2 * padX) : W - padX);
@@ -86,8 +86,7 @@ export function sparkline(raw: Point[], from: number, to: number): string {
   if (!points.length) return "";
   const W = 100;
   const H = 28;
-  let lo = Math.min(...points.map((p) => p.v));
-  let hi = Math.max(...points.map((p) => p.v));
+  let [lo, hi] = extent(points.map((p) => p.v));
   if (hi === lo) {
     lo -= 1;
     hi += 1;

@@ -1,4 +1,5 @@
 /** Weekday / time-of-day effects, histogram, comparisons (WP-06). Pure. */
+import { extent } from "./extent.ts";
 import { mean, median, quantile, sd, centredBaseline } from "./stats.ts";
 import { addDays, dayNoonUtc, daysBetween, localTime, weekdayOf } from "./time.ts";
 import type {
@@ -86,8 +87,7 @@ export function histogram(
   if (daily.length < 5) return null;
   const values = daily.map((d) => d.v);
   let width = spec.unit === "kg" && unit !== "kg" ? KG_PER_LB : spec.binWidth;
-  const lo = Math.min(...values);
-  const hi = Math.max(...values);
+  const [lo, hi] = extent(values);
   const count = (w: number) => Math.floor(hi / w + 1e-9) - Math.floor(lo / w + 1e-9) + 1;
   while (count(width) > 40) width *= 2;
   const first = Math.floor(lo / width + 1e-9);

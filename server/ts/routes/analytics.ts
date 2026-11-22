@@ -1,4 +1,5 @@
 /** "/", "/users/:id/overview", "/api/ui/*", CSV export, goal POST (WP-13). */
+import { extent } from "../analysis/extent.ts";
 import { csvFilename, exportRows, toCsv } from "../analysis/csv.ts";
 import { toDisplay } from "../analysis/format.ts";
 import { buildDashboardSummary, buildUserAnalysis, type UserInfo } from "../analysis/model.ts";
@@ -74,7 +75,7 @@ function parseRange(query: URLSearchParams, readings: Reading[], now: number) {
   const preset = RANGES.find((r) => r.key === query.get("range")) ?? RANGES[1];
   let start: number;
   if (preset.days) start = now - preset.days * DAY;
-  else start = readings.length ? Math.min(...readings.map((r) => r.t)) : now - DAY;
+  else start = readings.length ? extent(readings.map((r) => r.t))[0] : now - DAY;
   return { key: preset.key as RangeKey, from: Math.floor(start), to: now, morningOnly, compare };
 }
 
