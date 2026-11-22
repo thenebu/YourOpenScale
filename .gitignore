@@ -65,3 +65,8 @@ tom-notes.md
 **/*.egg-info/
 **/dist/
 **/.ruff_cache/
+
+# Web build and e2e output.
+/web/dist/
+/test-results/
+/playwright-report/
