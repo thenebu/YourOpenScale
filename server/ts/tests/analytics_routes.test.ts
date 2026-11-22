@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { handleApp, type AppEnv } from "../app.ts";
+import { addDays } from "../analysis/time.ts";
+import { localTime } from "../analysis/time.ts";
 import { LocalSqlite } from "../sqlite.ts";
 
 // Routes of WP-13: dashboard/overview wiring, JSON API, CSV export, goal POST and /theme.
@@ -151,6 +153,87 @@ test("legacy dashboard params are ignored", async () => {
     const b = await h.send("/?metric_5=11&range_5=30d");
     assert.equal(b.status, 200);
     assert.equal((await b.text()).replace(/back=[^"]*/g, ""), a.replace(/back=[^"]*/g, ""));
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("goal start date and start weight (R4a)", async () => {
+  const h = await harness();
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const today = localTime(now, "Europe/Berlin").day;
+    const first = localTime(now - 19 * 86400 - 3600, "Europe/Berlin").day;
+    const goal = (fields: Record<string, string>) => h.send("/users/5/goal", { form: { _csrf: h.csrf(), ...fields } });
+    const stored = async () => JSON.parse((await h.db.prepare("SELECT value FROM settings WHERE key='goal:5'").first<{ value: string }>())!.value);
+    const loc = (r: Response) => decodeURIComponent(r.headers.get("Location")!.replaceAll("+", " "));
+
+    // Past start derives from the trend on that day (the trend starts at the mean of the first readings, 79.9 kg).
+    assert.match(loc(await goal({ goal_weight: "75", goal_start: first })), /Goal saved#/);
+    let g = await stored();
+    assert.ok(Math.abs(g.startKg - 80) < 0.3, String(g.startKg));
+    assert.equal(g.startManual, undefined);
+    assert.equal(localTime(g.startAt, "Europe/Berlin").day, first);
+
+    // Editing the target only keeps the start (also when the data would now yield something else).
+    await h.db.prepare("UPDATE settings SET value=? WHERE key='goal:5'").bind(JSON.stringify({ ...g, startKg: 81.5 })).run();
+    await goal({ goal_weight: "74", goal_start: first });
+    g = await stored();
+    assert.equal(g.kg, 74);
+    assert.equal(g.startKg, 81.5);
+    // Changing the start date re-derives.
+    const later = addDays(first, 10);
+    await goal({ goal_weight: "74", goal_start: later });
+    g = await stored();
+    assert.ok(Math.abs(g.startKg - 79) < 0.6, String(g.startKg));
+    assert.equal(localTime(g.startAt, "Europe/Berlin").day, later);
+
+    // Manual start weight wins and is flagged; clearing it re-derives.
+    await goal({ goal_weight: "74", goal_start: first, goal_start_kg: "90,5" });
+    g = await stored();
+    assert.equal(g.startKg, 90.5);
+    assert.equal(g.startManual, true);
+    await goal({ goal_weight: "74", goal_start: first, goal_start_kg: "" });
+    g = await stored();
+    assert.equal(g.startManual, undefined);
+    assert.ok(Math.abs(g.startKg - 80) < 0.3);
+
+    // Rejections leave the stored goal alone.
+    const before = JSON.stringify(await stored());
+    assert.match(loc(await goal({ goal_weight: "74", goal_start: addDays(today, 2) })), /start date cannot be in the future/);
+    assert.match(loc(await goal({ goal_weight: "74", goal_start: "1999-12-31" })), /on or after 1 January 2000/);
+    assert.match(loc(await goal({ goal_weight: "74", goal_start: "2026-02-30" })), /valid date/);
+    const target = addDays(today, 30);
+    assert.match(loc(await goal({ goal_weight: "74", goal_start: addDays(target, 1), goal_date: target })), /start date cannot be in the future/);
+    assert.match(loc(await goal({ goal_weight: "74", goal_start: first, goal_start_kg: "5" })), /start weight must be between/);
+    assert.match(loc(await goal({ goal_weight: "74", goal_start: first, goal_start_kg: "abc" })), /start weight as a number/);
+    assert.equal(JSON.stringify(await stored()), before);
+    assert.match(loc(await goal({ goal_weight: "74", goal_start: today, goal_date: today })), /start date must be before the target date/);
+    assert.equal(JSON.stringify(await stored()), before);
+
+    // Gain goal and the form prefill/hint on the overview.
+    await goal({ goal_weight: "85", goal_start: first });
+    const page = await (await h.send("/users/5/overview")).text();
+    assert.match(page, new RegExp(`name="goal_start"[^>]*value="${first}"`));
+    assert.match(page, /name="goal_start_kg"[^>]*value=""/);
+    assert.match(page, /Start weight from your trend on [^:]+: 79\.9 kg/);
+    assert.match(page, /since /);
+    await goal({ goal_weight: "85", goal_start: first, goal_start_kg: "79" });
+    const manual = await (await h.send("/users/5/overview")).text();
+    assert.match(manual, /name="goal_start_kg"[^>]*value="79\.0"/);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("goal start without any data falls back to the reference weight with a notice", async () => {
+  const h = await harness();
+  try {
+    await h.db.prepare("DELETE FROM readings").run();
+    const r = await h.send("/users/5/goal", { form: { _csrf: h.csrf(), goal_weight: "75", goal_start: "2026-01-05" } });
+    assert.match(decodeURIComponent(r.headers.get("Location")!.replaceAll("+", " ")), /no weigh-ins around the start date/);
+    const g = JSON.parse((await h.db.prepare("SELECT value FROM settings WHERE key='goal:5'").first<{ value: string }>())!.value);
+    assert.equal(g.startKg, 80);
   } finally {
     h.cleanup();
   }

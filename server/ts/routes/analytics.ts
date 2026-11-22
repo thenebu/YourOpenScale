@@ -4,6 +4,8 @@ import { csvFilename, exportRows, toCsv } from "../analysis/csv.ts";
 import { toDisplay } from "../analysis/format.ts";
 import { buildDashboardSummary, buildUserAnalysis, type UserInfo } from "../analysis/model.ts";
 import { serializeAnalysis, serializeDashboard } from "../analysis/serialize.ts";
+import { GOAL_MIN_START_DAY, deriveStart, localNoon } from "../analysis/goal_start.ts";
+import { localTime } from "../analysis/time.ts";
 import { RANGES } from "../analysis/spec.ts";
 import type { Agg, Goal, RangeKey, Reading, Unit } from "../analysis/types.ts";
 import { t } from "../i18n/index.ts";
@@ -51,6 +53,16 @@ function userInfo(user: UserRow, now: number): UserInfo {
     ageYears: ageYears(user, now),
     sex: user.sex === 1 ? 1 : 0,
   };
+}
+
+/** The user's time zone: that of their latest reading, else the first scale's, else null (UTC). */
+async function userZone(db: D1Database, readings: Reading[]): Promise<string | null> {
+  const zoned = readings.filter((r) => r.zone).sort((a, b) => a.t - b.t);
+  if (zoned.length) return zoned[zoned.length - 1].zone;
+  const scale = await db
+    .prepare("SELECT time_zone FROM scales WHERE time_zone IS NOT NULL AND time_zone<>'' ORDER BY id LIMIT 1")
+    .first<{ time_zone: string }>();
+  return scale?.time_zone ?? null;
 }
 
 async function displayUnit(db: D1Database): Promise<Unit> {
@@ -137,11 +149,15 @@ async function overview(ctx: ForkCtx, id: number): Promise<Response> {
       headers: { Location: `/users/${target}/overview${qs ? `?${qs}` : ""}`, "Cache-Control": "no-store" },
     });
   }
-  const { analysis } = await analysisFor(ctx, user);
+  const { analysis, readings } = await analysisFor(ctx, user);
+  const zone = await userZone(ctx.db, readings);
+  const goal = analysis.goal;
+  const startDay = goal ? localTime(goal.startAt, zone).day : localTime(Math.floor(Date.now() / 1000), zone).day;
+  const goalStart = { day: startDay, zone, autoKg: deriveStart(readings, startDay, zone, user.reference_weight_kg) };
   const users = (await ctx.db.prepare("SELECT id,name FROM users WHERE active=1 ORDER BY name,id").all<{ id: number; name: string }>()).results;
   // "<" is escaped as a JSON unicode escape so the payload can never close or confuse the script element.
   const wireJson = JSON.stringify(serializeAnalysis(analysis)).replaceAll("<", "\\u003c");
-  const body = overviewView(analysis, { users, query: ctx.url.searchParams, csrf: ctx.csrf, wireJson });
+  const body = overviewView(analysis, { users, query: ctx.url.searchParams, csrf: ctx.csrf, wireJson, zone, goalStart });
   return ctx.page(user.name, body, `/users/${id}/overview`, { entries: ["app", "charts"] });
 }
 
@@ -184,17 +200,21 @@ async function saveGoalForm(ctx: ForkCtx, id: number): Promise<Response> {
     const v = form.get(key);
     return typeof v === "string" ? v.trim() : "";
   };
+  const unit = await displayUnit(ctx.db);
   const weight = text("goal_weight").replace(",", ".");
   if (!weight) {
     await saveGoal(ctx.db, id, null);
     return ctx.go(`${back}#progress`, t("msg.goalRemoved"));
   }
-  const unit = await displayUnit(ctx.db);
   const entered = Number(weight);
   if (!/^\d+(\.\d+)?$/.test(weight) || !Number.isFinite(entered)) return fail(t("msg.goalNumber"));
   const kg = entered / toDisplay(1, unit);
   if (kg < 20 || kg > 350) return fail(t("msg.goalRange"));
   const now = Math.floor(Date.now() / 1000);
+  const readings = await loadReadings(ctx.db, id, 0);
+  const zone = await userZone(ctx.db, readings);
+  const today = localTime(now, zone).day;
+  const existing = await loadGoal(ctx.db, id);
   const dateText = text("goal_date");
   let date: string | null = null;
   if (dateText) {
@@ -202,17 +222,37 @@ async function saveGoalForm(ctx: ForkCtx, id: number): Promise<Response> {
     if (day === null || day + DAY <= now) return fail(t("msg.goalDateFuture"));
     date = dateText;
   }
-  const existing = await loadGoal(ctx.db, id);
-  let goal: Goal;
-  if (existing) goal = { kg, date, startKg: existing.startKg, startAt: existing.startAt };
-  else {
-    const readings = await loadReadings(ctx.db, id, now - DASHBOARD_DAYS * DAY);
-    const summary = buildDashboardSummary({ user: userInfo(user, now), readings, unit, goal: null, now });
-    const start = summary.trendKg ?? summary.last?.weightKg ?? user.reference_weight_kg;
-    goal = { kg, date, startKg: start, startAt: now };
+  // Start day: defaults to the stored one (or today); must be a real day in [2000-01-01, today] before the target date.
+  const startText = text("goal_start") || (existing ? localTime(existing.startAt, zone).day : today);
+  if (parseDay(startText) === null) return fail(t("msg.goalStartInvalid"));
+  if (startText < GOAL_MIN_START_DAY) return fail(t("msg.goalStartOld"));
+  if (startText > today) return fail(t("msg.goalStartFuture"));
+  if (date !== null && startText >= date) return fail(t("msg.goalStartAfterTarget"));
+  let startKg: number;
+  let startManual = false;
+  let notice = t("msg.goalSaved");
+  const startWeight = text("goal_start_kg").replace(",", ".");
+  if (startWeight) {
+    const entered = Number(startWeight);
+    if (!/^\d+(\.\d+)?$/.test(startWeight) || !Number.isFinite(entered)) return fail(t("msg.goalStartKgNumber"));
+    startKg = entered / toDisplay(1, unit);
+    if (startKg < 20 || startKg > 350) return fail(t("msg.goalStartKgRange"));
+    startManual = true;
+  } else startKg = NaN;
+  let startAt = localNoon(startText, zone);
+  if (!startManual) {
+    if (existing && !existing.startManual && localTime(existing.startAt, zone).day === startText) {
+      startKg = existing.startKg; // unchanged start day: keep what was stored
+      startAt = existing.startAt;
+    } else {
+      const derived = deriveStart(readings, startText, zone, user.reference_weight_kg);
+      startKg = derived.kg;
+      if (derived.source === "reference") notice = t("msg.goalSavedNoData");
+    }
   }
+  const goal: Goal = { kg, date, startKg, startAt, ...(startManual ? { startManual: true } : {}) };
   await saveGoal(ctx.db, id, goal);
-  return ctx.go(`${back}#progress`, t("msg.goalSaved"));
+  return ctx.go(`${back}#progress`, notice);
 }
 
 export async function handleAnalyticsRoute(ctx: ForkCtx): Promise<Response | null> {

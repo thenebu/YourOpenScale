@@ -85,6 +85,8 @@ test("goal round trip, unassigned count and active users", async () => {
     assert.equal(await loadGoal(db, 2), null, "goals are per user");
     await db.prepare("INSERT INTO settings(key,value) VALUES('goal:3','{oops')").run();
     assert.equal(await loadGoal(db, 3), null, "corrupt goal is ignored");
+    await saveGoal(db, 1, { ...goal, startManual: true });
+    assert.equal((await loadGoal(db, 1))?.startManual, true);
     await saveGoal(db, 1, null);
     assert.equal(await loadGoal(db, 1), null);
 

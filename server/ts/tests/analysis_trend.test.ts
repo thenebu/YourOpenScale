@@ -181,3 +181,15 @@ test("weeklyRateSeries: end-of-week deltas, consecutive weeks, same segment", ()
   const missing = tr.filter((_, i) => i < 7 || i >= 14);
   assert.equal(weeklyRateSeries(missing).length, 0);
 });
+
+test("goalProgress works for loss and gain goals and clamps", () => {
+  const loss: Goal = { kg: 80, date: null, startKg: 90, startAt: 0 };
+  assert.equal(goalProgress(85, loss)!.fraction, 0.5);
+  assert.equal(goalProgress(95, loss)!.fraction, 0);
+  assert.equal(goalProgress(78, loss)!.fraction, 1);
+  const gain: Goal = { kg: 80, date: null, startKg: 70, startAt: 0 };
+  assert.equal(goalProgress(75, gain)!.fraction, 0.5);
+  assert.equal(goalProgress(65, gain)!.fraction, 0);
+  assert.equal(goalProgress(83, gain)!.fraction, 1);
+  assert.equal(goalProgress(null, gain), null);
+});

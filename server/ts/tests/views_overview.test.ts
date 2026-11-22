@@ -119,3 +119,18 @@ test("empty analysis renders without throwing", () => {
   assert.match(html, /No weigh-ins in this range/);
   assert.match(html, /id="analysis-data"/);
 });
+
+test("goal form: start date and start weight fields with hint, manual prefill", () => {
+  const a = build(full);
+  const html = overviewView(a, {
+    users, query: new URLSearchParams(), csrf: "t", wireJson: "{}", zone: "Europe/Berlin",
+    goalStart: { day: "2025-11-01", zone: "Europe/Berlin", autoKg: { kg: 91.2, source: "trend" } },
+  });
+  const form = /<form class="goal-form"[^>]*>[\s\S]*?<\/form>/.exec(html)?.[0] ?? "";
+  assert.match(form, /name="goal_start"[^>]*value="2025-11-01"/);
+  assert.match(form, /name="goal_start_kg"[^>]*step="any"[^>]*value=""/);
+  assert.match(form, /Start weight from your trend on [^:]+: 91\.2 kg/);
+  assert.match(html, /of the way from 88\.0 kg to 78\.0 kg, since /);
+  a.goal = { ...a.goal!, startManual: true, startKg: 90 };
+  assert.match(overviewView(a, { users, query: new URLSearchParams(), csrf: "t", wireJson: "{}" }), /name="goal_start_kg"[^>]*value="90\.0"/);
+});

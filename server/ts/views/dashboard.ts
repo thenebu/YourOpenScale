@@ -64,10 +64,10 @@ function hero(s: DashboardSummary): string {
   return `<data class="stat-value" value="${e(shown)}">${e(formatMass(shown, s.unit, { decimals: 1 }))}</data><p class="user-card-sub">${e(sub)}</p>`;
 }
 
-function progress(s: DashboardSummary): string {
+function progress(s: DashboardSummary, zone: string | null): string {
   if (!s.goal || !s.progress) return "";
   const pct = Math.round(Math.min(1, Math.max(0, s.progress.fraction)) * 100);
-  const label = t("dash.progress", { pct: percent(pct), start: formatMass(s.progress.startKg, s.unit, { decimals: 1 }), goal: formatMass(s.progress.goalKg, s.unit, { decimals: 1 }) });
+  const label = t("dash.progress", { pct: percent(pct), start: formatMass(s.progress.startKg, s.unit, { decimals: 1 }), goal: formatMass(s.progress.goalKg, s.unit, { decimals: 1 }), date: formatDate(s.goal.startAt, zone ?? "UTC", "medium") });
   return `<progress class="progress" max="100" value="${pct}" aria-label="${e(label)}">${percent(pct)}</progress><p class="user-card-sub">${e(label)}</p>`;
 }
 
@@ -119,7 +119,7 @@ function userCard(s: DashboardSummary, zone: string | null): string {
   const deltas = `<div class="user-card-deltas">${deltaItem(s.deltas.d7, t("delta.7d"), s)}${deltaItem(s.deltas.d30, t("delta.30d"), s)}${deltaItem(s.deltas.d90, t("delta.90d"), s)}</div>`;
   const mini = miniTrend({ ...s.mini });
   const footer = `<div class="card-footer"><span>${e(consistency(s))}</span>${link(href, t("dash.openAnalysis"), { chevron: true })}</div>`;
-  const rows = [header, hero(s), deltas, mini, `<p class="user-card-rate">${e(s.rateText)}</p>`, progress(s), chips(s), footer];
+  const rows = [header, hero(s), deltas, mini, `<p class="user-card-rate">${e(s.rateText)}</p>`, progress(s, zone), chips(s), footer];
   const cls = ["uc-head", "uc-hero", "uc-deltas", "uc-mini", "uc-rate", "uc-progress", "uc-chips", "uc-foot"];
   return `<section class="card user-card" aria-label="${e(s.user.name)}">${rows.map((r, i) => `<div class="${cls[i]}">${r}</div>`).join("")}</section>`;
 }

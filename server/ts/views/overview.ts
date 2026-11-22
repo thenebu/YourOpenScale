@@ -18,6 +18,10 @@ export type OverviewCtx = {
   csrf: string;
   /** JSON.stringify(serializeAnalysis(a)); embedded in the page (script-closing sequences are escaped here). */
   wireJson: string;
+  /** Time zone of the user (null = UTC); used to show the goal start date. */
+  zone?: string | null;
+  /** Prefill for the goal start fields: local start day and the automatically derived start weight on it. */
+  goalStart?: { day: string; zone: string | null; autoKg: { kg: number; source: "trend" | "reading" | "reference" } };
 };
 
 const DAY = 86400;
@@ -305,7 +309,15 @@ function goalCard(a: UserAnalysis, ctx: OverviewCtx): string {
   const unit = a.unit;
   const decimals = unit === "st" ? 2 : 1;
   const shown = g ? toDisplay(g.kg, unit).toFixed(decimals) : ""; // form value: always a dot
-  const form = `<form class="goal-form" method="post" action="/users/${a.user.id}/goal"><input type="hidden" name="_csrf" value="${e(ctx.csrf)}"><label>${e(t("ov.goalWeight", { unit: unit === "st" ? t("ov.decimalStones") : unitText(unit) }))}<input type="number" name="goal_weight" inputmode="decimal" step="any" min="0" value="${e(shown)}" placeholder="${e(unit === "kg" ? "78.0" : unit === "lb" ? "172.0" : "12.3")}"></label><label>${e(t("ov.targetDate"))}<input type="date" name="goal_date" value="${e(g?.date ?? "")}"></label><p class="hint">${e(t("ov.removeGoalHint"))}</p><button class="btn btn-primary btn-sm" type="submit">${e(t("ov.saveGoal"))}</button></form>`;
+  const ph = unit === "kg" ? "78.0" : unit === "lb" ? "172.0" : "12.3";
+  const gs = ctx.goalStart;
+  const startDay = gs?.day ?? (g ? isoDay(g.startAt) : "");
+  const startShown = g?.startManual ? toDisplay(g.startKg, unit).toFixed(decimals) : "";
+  const hint = gs
+    ? t(`ov.startAuto.${gs.autoKg.source}`, { date: formatDate(dayNoonUtc(gs.day), "UTC", "medium"), mass: formatMass(gs.autoKg.kg, unit, { decimals: 1 }) })
+    : "";
+  const unitName = unit === "st" ? t("ov.decimalStones") : unitText(unit);
+  const form = `<form class="goal-form" method="post" action="/users/${a.user.id}/goal"><input type="hidden" name="_csrf" value="${e(ctx.csrf)}"><label>${e(t("ov.goalWeight", { unit: unitName }))}<input type="number" name="goal_weight" inputmode="decimal" step="any" min="0" value="${e(shown)}" placeholder="${e(ph)}"></label><label>${e(t("ov.targetDate"))}<input type="date" name="goal_date" value="${e(g?.date ?? "")}"></label><label>${e(t("ov.startDate"))}<input type="date" name="goal_start" min="2000-01-01" value="${e(startDay)}"></label><label>${e(t("ov.startWeight", { unit: unitName }))}<input type="number" name="goal_start_kg" inputmode="decimal" step="any" min="0" value="${e(startShown)}" placeholder="${e(t("ov.startWeightAuto"))}"></label>${hint ? `<p class="hint goal-start-hint">${e(hint)}</p>` : ""}<p class="hint">${e(t("ov.startHint"))}</p><p class="hint">${e(t("ov.removeGoalHint"))}</p><button class="btn btn-primary btn-sm" type="submit">${e(t("ov.saveGoal"))}</button></form>`;
   let head = "";
   if (g) {
     const pr = a.progress;
@@ -314,7 +326,7 @@ function goalCard(a: UserAnalysis, ctx: OverviewCtx): string {
     head =
       `<p class="goal-target"><data value="${g.kg}">${e(formatMass(g.kg, unit, { decimals: 1 }))}</data>${g.date ? ` <span class="hint">${e(t("ov.goalBy", { date: formatDate(dayNoonUtc(g.date), "UTC", "medium") }))}</span>` : ""}</p>` +
       (pct !== null && pr
-        ? `<progress class="progress" max="100" value="${pct}" aria-label="${e(t("ov.goalProgressAria"))}">${percent(pct)}</progress><p class="goal-progress-text"><strong>${percent(pct)}</strong> ${e(t("ov.goalProgressRest", { start: formatMass(pr.startKg, unit, { decimals: 1 }), goal: formatMass(pr.goalKg, unit, { decimals: 1 }) }))}</p>`
+        ? `<progress class="progress" max="100" value="${pct}" aria-label="${e(t("ov.goalProgressAria"))}">${percent(pct)}</progress><p class="goal-progress-text"><strong>${percent(pct)}</strong> ${e(t("ov.goalProgressRest", { start: formatMass(pr.startKg, unit, { decimals: 1 }), goal: formatMass(pr.goalKg, unit, { decimals: 1 }), date: formatDate(g.startAt, ctx.zone ?? ctx.goalStart?.zone ?? "UTC", "medium") }))}</p>`
         : "") +
       `<p class="goal-projection">${e(projectionText(a))}</p>` +
       (req !== null && req !== undefined
