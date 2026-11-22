@@ -1,230 +1,124 @@
 <img src="docs/logo.png" alt="YourOpenScale logo" width="100" />
 
 # YourOpenScale (YOS)
-> A fork of [YourOwnWeigh](https://github.com/TomAnthony/YourOwnWeigh) by Tom Anthony (MIT). The scale firmware patches, the Python bridge and the original server are his work; this fork builds on them. Its changes were developed largely with the AI assistant Claude ([details](#how-this-fork-was-made)). See [Direction](#direction-your-data-your-server-your-analysis) and [What this fork adds](#what-this-fork-adds).
 
-### _Free Wi-Fi Syncing for Withings Scales_
+**Your scale, your data, your server.** YourOpenScale lets Withings Wi-Fi scales report to a server you run yourself, and turns the readings into trends, goals and projections that are computed on that same server.
 
-This project provides the components needed to have your Withings scales sync its readings to your own data store. The scales sync over wifi, as they do now, just for free and without Withings.
-
-It is designed to allow you to ensure your hardware is able to work how you want, without subscription fees. You can sync to Apple Health, Google Health or anywhere you want.
-
-If you want to know more about why, see the upstream author's [blog post](https://www.tomanthony.co.uk/blog/withings-yow-free-wifi-sync/), otherwise there are quick start guides below.
-
-_The upstream project was released in October 2026 and has been used across various models of scales by various users, but there are no guarantees. Passages below written in the first person (FAQ, motivation) come from the upstream README by Tom Anthony._
-
-Issues and pull requests are welcome in this repository. Support for new scale models and firmware work is best discussed with the [upstream project](https://github.com/TomAnthony/YourOwnWeigh) as well.
+> Built on [YourOwnWeigh](https://github.com/TomAnthony/YourOwnWeigh) by Tom Anthony (MIT), who worked out how to talk to the scales and wrote the firmware patches and the Bluetooth bridge. See [Credits](#credits).
 
 <img src="docs/screenshot-dashboard.png" alt="YourOpenScale dashboard with three people (demo data)" width="1024">
 
-## Direction: your data, your server, your analysis
+## Why
 
-Upstream frees the scale from the Withings cloud. This fork goes one step further and aims at the whole chain staying in your hands:
+Three things matter here, in this order:
 
-- **Your data.** Every weigh-in lands in one SQLite database (or your own Cloudflare D1) that you own. You can download it any time (Settings → Backup and restore → Export database), export each person's series as CSV, and import a Withings data export to bring your history along. Nothing is sent to a third party.
-- **Your server.** The scale talks to a server you run, at home, on a NAS or on a small VPS, with your own domain and TLS. No account, no subscription, no vendor app. The web pages load everything from your own server (enforced by a Content-Security-Policy): no CDNs, web fonts or analytics. The only outbound requests are the optional ones you trigger yourself, such as fetching a Withings export or the stock firmware for patching.
-- **Your analysis.** Trend, rate, goal projection, weekly rhythm, records and data-quality checks are computed on your server from your readings, with the formulas in the open (see "How the numbers are calculated" at the bottom of each overview, and [`server/ts/analysis/`](server/ts/analysis/)). Assumptions are labelled as such, and a sync API ([`contracts/`](contracts/readings/v1/README.md)) lets you pull the raw readings into Apple Health or your own tools and do your own analysis.
+- **Your data.** Every weigh-in is stored in one SQLite database (or your own Cloudflare D1) that you own. Download it any time (Settings → Backup and restore → Export database), export a person's series as CSV, or import a Withings data export to bring your history along. Nothing goes to a third party.
+- **Your server.** The scale talks to a server you operate: at home, on a NAS, or on a small VPS, under your own domain and TLS. No account, no subscription, no vendor app. The web pages load everything from your own server (enforced by a Content-Security-Policy), so there are no CDNs, web fonts or analytics. The only outbound requests are optional ones you trigger yourself, such as fetching a Withings export or the stock firmware that gets patched.
+- **Your analysis.** Trend, rate of change, goal projection, weekly rhythm, records and data-quality checks are calculated on your server from your readings. The formulas are open ([`server/ts/analysis/`](server/ts/analysis/)), explained on each overview page ("How the numbers are calculated"), and assumptions are labelled as assumptions. A sync API ([`contracts/`](contracts/readings/v1/README.md)) hands the raw readings to Apple Health or your own tools for analysis of your own.
 
-## What this fork adds
-
-- **Redesigned web UI** with light and dark themes, a grouped navigation, and an installable PWA (offline page only; pages and readings are never cached).
-- **Charts and analysis** per person: trend weight (smoothed), rate of change, weekly rhythm, records, data-quality checks, BMI and body composition where the scale measures it.
-- **Goals with a start date and start weight**, progress since the start, and a **goal projection** that does not simply extend a straight line (see [below](#goal-projection)).
-- **English and German** interface, plus selectable date and time formats.
-- **Import of Withings data exports.**
-- **Docker self-hosting** behind your own reverse proxy, with a [one-command deploy script](docker/FORK-DEPLOY.md) (tests, database backup, health check, smoke check, automatic rollback).
+## What you get
 
 <img src="docs/screenshot-overview.png" alt="Per-person overview with trend, rate, BMI and goal projection (demo data)" width="1024">
 
-### Goal projection
+- A dashboard with one card per person, and a detailed overview for each: smoothed trend weight, rate over the last weeks, BMI, body composition where the scale measures it, weekly rhythm, records, and a data-quality check that flags implausible readings.
+- Goals with a start date and start weight, progress since the start, and a [projection](#goal-projection) of when you will get there.
+- Several people on one scale, readings assigned to the right person.
+- English and German interface, selectable date and time formats, light and dark theme.
+- Installable as an app on desktop and phone (HTTPS required). Offline you only get a placeholder page; readings and pages are never cached by the service worker.
+- Import of Withings data exports, CSV export, database backup and restore.
+- Sync API and a Shortcut for Apple Health.
+- Docker deployment behind your own reverse proxy, with a [one-command deploy script](docker/FORK-DEPLOY.md) for your own host.
 
-Losing weight is not linear: the first kilos come off faster, and it gets slower closer to a healthy weight, with lower body fat, and with age. The projected date takes this into account:
+## Goal projection
 
-1. If your own history since the goal start already shows a flattening curve (fitted as an exponential approach, accepted only when it clearly beats a straight line), that curve is used and the date range comes from the fit's uncertainty.
-2. Otherwise, for weight loss, the pace is assumed to ease off in proportion to what is left above a floor weight. The floor is the weight at a BMI of 21 (rising slightly with age) or, when body fat is measured, the weight at which your lean mass would carry the minimum body-fat share, whichever is higher. These numbers are rule-of-thumb assumptions, not medical advice; they are constants at the top of [`server/ts/analysis/trend.ts`](server/ts/analysis/trend.ts).
-3. The straight-line date at your current rate is shown as the earliest estimate. If the curve settles above your goal, the page says so instead of giving a date.
+Losing weight is not a straight line: the first kilos come off fast, and it slows down towards a healthy weight, at lower body fat and with age. The projected date takes that into account.
 
-## YOW Components
+1. If your own history since the goal start already shows a flattening curve, that curve is used. It is fitted as an exponential approach and only accepted when it clearly beats a straight line; the date range comes from the uncertainty of the fit.
+2. Otherwise, for weight loss, the pace is assumed to ease off in proportion to what is left above a floor weight. The floor is the weight at a BMI of 21 (a little higher with age) or, when body fat is measured, the weight at which your lean mass would carry the minimum healthy fat share, whichever is higher. These numbers are rules of thumb, not medical advice. They are constants at the top of [`server/ts/analysis/trend.ts`](server/ts/analysis/trend.ts).
+3. The straight-line date at your current rate is shown as the earliest estimate. If the curve settles above your goal, the page says that instead of inventing a date.
 
-This repo provides several components:
+## Supported scales
 
-- firmware patches for various models (see below)
-- a Python bridge app you run locally to do firmware updates
-- a web app that
-  - manages device config, users and readings
-  - replaces Withings as the data sync API for your scales
-  - acts as the firmware management interface (with the bridge)
-- shortcuts/scripts that help you automatically sync this data (e.g. into Apple Health)
+| Scale | Model | Stock firmware | YOS firmware | Contributed by |
+| --- | --- | --- | --- | --- |
+| Body Smart | WBS13 | v1311 | v103 | |
+| Body | WBS06 | v1181 | v127 | |
+| Body+ | WBS05 | v1651 | v100 | |
+| Body Cardio | WBS04 | v2231 | v100 | [KindOfNerdy](https://github.com/KindOfNerdy) |
+| Wireless Scale | WBS03 (WS‑30) | v921 | v102 | |
+| Smart Body Analyzer | WBS02 (WS‑50) | v1721 | v1023 | [ionothanus](https://github.com/ionothanus), [pufnstuf](https://github.com/pufnstuf) |
 
-You can easily import your devices, and registered scale user roster into YOW, so you can continue right where you left off.
+The WS‑30 and WS‑50 only sync over plain HTTP. Look for the model number under the batteries: scales sold under the same name can differ. Adding another model is described in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Supported Models
+## How the pieces fit
 
-The below models are currently supported. Pull Requests to add more models are very welcome.
+- **Server** (`server/`): the dashboard, the API the scale talks to, the sync API for reading data out, and the firmware management pages. Runs as a Docker container, as a local Node process, or as a Cloudflare Worker with D1.
+- **Bridge** (`bridge/`): a small Python program you run on a computer within Bluetooth range of the scale. It identifies the scale and carries the firmware update. macOS, Linux and Windows are supported; on Windows only Bluetooth LE scales work, because the Classic transport used by the WS‑30 and WS‑50 has no Windows port.
+- **Firmware patches** (`firmware/`): per-model patches that make the scale report to your server. The Withings firmware itself is not in this repository; the server downloads it from Withings and patches it on request.
+- **Connectors** (`connectors/`): an Apple Health Shortcut and helpers that pull readings out of the sync API.
 
-| Scale | Model | Stock Firmware | YOW Firmware | Thanks | Notes |
-| --- | --- | --- | --- | --- | --- |
-| Body Smart | **WBS13** | v1311 | v103 | | |
-| Body | **WBS06** | v1181 | v127 | | |
-| Body+ | **WBS05** | v1651 | v100 | | |
-| Body Cardio | **WBS04** | v2231 | v100 | [KindOfNerdy](https://github.com/KindOfNerdy) | |
-| Wireless Scale | **WBS03**<br>**(WS‑30)** | v921 | v102 | | HTTP only scale sync. |
-| Smart Body Analyzer | **WBS02**<br>**(WS‑50)** | v1721 | v1023 | [ionothanus](https://github.com/ionothanus) & [pufnstuf](https://github.com/pufnstuf) | HTTP only scale sync. |
+## Setup
 
-You can check your model under the batteries. Not all models with the same name (e.g. "Body Smart") are equivalent to one another, so please check the actual model number.
+**1. Run the server.** Pick one:
 
-## Supported Platforms
+- Docker (recommended for a 24/7 setup): [`docker/README.md`](docker/README.md). One container, plain HTTP, behind your reverse proxy that serves one subdomain.
+- Locally for a first try: `npm ci && npm run setup:local -- --scale-host YOUR_LAN_IP`, then see [`server/README.md`](server/README.md). The scale only connects to ports 80 and 443, so a local run needs a small forwarder such as Caddy.
+- Cloudflare Workers + D1: `npm ci && npx wrangler login && npm run setup:cloudflare -- --name SHORT-NAME --deploy`. Choose a short name, the full hostname must fit the scale's limit (see below). This path is inherited from upstream and is the least exercised in this fork.
 
-The web app and Python bridge are supported on macOS, Windows, and Linux.
+Open the printed URL, enter the bootstrap token and set an admin password.
 
-On Windows the Python bridge currently only suports Bluetooth LE scales, as the Classic transport (for WS-30/WS-50) has no Windows port yet.
+**2. Start the bridge** on a computer near the scale:
 
-Thanks to [mbragagnolo](https://github.com/mbragagnolo/) for the Windows port!
+```sh
+python3.11 -m venv .venv
+.venv/bin/pip install ./bridge
+.venv/bin/yow-bridge
+```
 
-## Quick Start Using Cloudflare
+It asks for an invitation code. Create one in the web app under **Firmware Bridge → Generate Connection Invitation** and paste it in.
 
-_This quick start is inherited from upstream. The author of this fork runs the server with Docker (below), so the Cloudflare path is less exercised here._
+**3. Import the scale.** Put the scale into setup mode with its button, scan (BLE, or Classic for older models), connect, and choose **Import Device To Server**. Its settings and user roster are fetched from Withings, so you continue where you left off.
 
-Using a free CloudFlare account, you can set this up end to end in a durable fashion.
+**4. Flash the firmware** (read the next section first). **Generate Firmware** downloads the matching Withings version and patches it; check model and version, then **Send Update To Device** and type `FLASH`. Keep the scale powered and the bridge running until it is done.
 
-You will deploy a CloudFlare worker that uses D1 for storage, and which serves as the YOW dashboard, the API for scales to speak to, and the Sync API for reading data back out (to Apple Health, for example).
+**5. Point the scale at your server.** After the reboot, open the **Configure** pane, enter your server's hostname, choose the protocol (some models only do HTTP), and set the Wi-Fi if needed. Step on the scale and check **Readings** after 20 to 40 seconds.
 
-You will also need to run the Python bridge on a machine that is within Bluetooth range of your scales.
+## Before you flash
 
-1. Setup a free Cloudflare account (or use an existing account).
-2. Run:
+Flashing firmware can go wrong. The risks, as far as they are known:
+
+- The models checked so far have two firmware slots and write an update to the one with the lower version. The YOS patches carry deliberately low version numbers, so one slot should keep the stock firmware. An interrupted write invalidates a slot, and the next attempt prefers that slot, so you can try again.
+- A bad write can still take Bluetooth down. Then the scale needs a wired UART connection to be rescued; the tools for that are in [`tools/README.md`](tools/README.md).
+- Keep the original firmware and device backups before you flash. The inactive slot can still supply radio resources, so do not erase it casually.
+- The scale only connects to ports 80 and 443, and the server hostname has a length limit: 48 characters on the WBS06, 59 on the WS‑30.
+- The WBS06 encrypts HTTPS traffic but does not verify the server certificate. The WS‑30 uses plain HTTP; its secret is hashed but the readings travel in the clear. Keep such scales on a network you trust, and see [`docker/README.md`](docker/README.md) for a LAN-only HTTP route.
+- To check which firmware is on a scale: connect with the app, or take a battery out for a moment. Stock firmware shows "Hello" when it powers up, YOS firmware shows a smiley.
+
+## Development
 
 ```sh
 npm ci
-npx wrangler login
-npm run setup:cloudflare -- --name YOUR-SHORT-WORKER-NAME --deploy
+npm run server:typecheck      # TypeScript
+npm run server:test           # unit and server tests
+npm run dev                   # synthetic dev server with demo data, no real readings
+npm run e2e                   # browser tests (Playwright)
+tools/deploy.sh               # tests, backup, build, deploy, smoke check, rollback
 ```
 
-_Choose a short Worker name_: the complete hostname must fit your scale's character limit below.
-
-3. Open the HTTPS URL printed by Wrangler. Enter the bootstrap token, then set an admin password. The Sync API (for reading data out of YOW) uses it too, by default (you can override).
-4. Install and start the Python bridge:
-
-   ```sh
-   python3.11 -m venv .venv
-   .venv/bin/pip install ./bridge
-   .venv/bin/yow-bridge
-   ```
-
-It will ask for an invite code, required for it to establish a secure connection to your server.
-
-5. In the web app, open **Firmware Bridge**, and click **Generate Connection Invitation** and paste it into Terminal. Grant Bluetooth permissions if requested. The bridge's connected status appears in the page.
-6. Put the scale into setup mode with its button. Press **Scan BLE** (or **Scan Classic** for older devices), and wait for that to complete.
-7. Click **Connect** against the desired device, the bridge should  identify the scale automatically.
-8. Accept **Import Device To Server**. The scales' existing settings are fetched automatically from Withings (using the MAC & Secret read from the device).
-9. Users are also read from Withings, and new users can be imported too. (If the initial profile fetch fails, use **Finish Device Import** under **Scales → Edit Settings** later.)
-
-At this point you now have your server running, with your device imported, and your user roster imported. We now need to update the firmware on your device so it also connects to this server - **only do this on supported devices (and accept it may be a risk)**.
-
-10. Press **Generate Firmware**, which will download the supported Withing's firmware version for your scales and patch it with the necessary updates.
-11. Make sure to review the model/version, then **Send Update To Device** and type `FLASH`. Keep the scale powered and bridge running.
-12. After reboot reconnect to confirm the version. (Note: I sometimes found I had to remove the batteries and replace them after an update - something for the TODO list.)
-13. Once reconnected, in the **Configure** pane, enter your  server's hostname (there is a link to help), and select the protocol the scales should use (some only support HTTP currently - your secret is hashed, but your data is in the clear).
-14. Also update your Wifi details if needed.
-15. Weigh yourself! Wait a moment (usually 20-40 seconds) and check **Readings**. Hopefully you have a result there!
-
-## Running Locally with Caddy
-
-You can run the whole server locally, but you will need your server to stay using the same internal network IP and to stay up. You can run locally just for getting up and running, and later import the database (via the Settings panel in the app) into another instance.
-
-The firmware only supports connecting to ports 80 or 443, which a normal user cannot listen on, so install [Caddy](https://caddyserver.com/docs/install) which handles this for you.
-
-Then run:
-
-```sh
-npm ci
-npm run setup:local -- --scale-host YOUR_MAC_LAN_IP
-```
-
-- Open `http://127.0.0.1:8080`, use the printed bootstrap token and set your password.
-- In a second Terminal, run the Caddy command printed by setup. It forwards HTTP 80 and HTTPS 443 to the **scale-only** listener at `127.0.0.1:8081`; the admin page remains on loopback. 
-- You can now follow from step 4 (Python bridge) in the CloudFlare section above, entering the machines IP as the scale's hostname. 
-
-## Running with Docker
-
-Run the server 24/7 on a NAS, VPS or Pi behind your own reverse proxy, which terminates TLS for one subdomain and forwards to the container (plain HTTP, one port). See [`docker/`](docker/README.md) for the compose file and setup.
-
-## Language
-
-The interface is available in English and German. It picks the language from the `yos_lang` cookie, otherwise from your browser's Accept-Language header, otherwise English. Switch with the EN | DE control in the footer or under Settings. Exports (CSV, backups) and the API are not translated.
-
-Date and time formats are separate preferences under Settings (`yos_datefmt`, `yos_timefmt` cookies): automatic (by language), `22.11.2026`, `2026-11-22`, `11/22/2026`, `22/11/2026`; 24-hour or 12-hour time. Exports, URLs and `<input type="date">` pickers are unaffected (pickers follow the browser language).
-
-## Install as app
-
-The dashboard is an installable web app (it needs HTTPS or `localhost`). In Chrome or Edge use the Install button in the address bar, or "Install app" in the page footer. On iOS Safari tap Share, then Add to Home Screen. Offline you only get a branded "You are offline" page: the service worker never caches pages, API responses or readings.
-
-## FAQ
-
-**Q)** Will this brick my device?
-
-Unlikely, but possible. I flashed lots of firmware attempts to my WBS06 and WS-30 scales whilst researching how to make this work, and that worked fine. I later added WBS13 without problems, and others have added more models without any reported issues.
-
-The models I looked at all have two firmware slots, and updates are always written to the slot with the lowest version. I have deliberately set my version numbers low so one slot should retain a Withings vanilla firmware.
-
-An incomplete firmware write (an interrupted one for example) invalidates a slot, and future updates will prefer an invalid slot, so you can try again.
-
-There is a possibility that a bad firmware write makes your Bluetooth become unavailable in an unlucky, which would require rescuing your scales with a UART connection ($10 for a cable on Amazon) - there are various UART tools included in this repo for those who know what they are doing.
-
-**Q)** Are you distributing Withings' firmware?
-
-No - the app downloads the firmware from Withings' servers and then patched.
-
-**Q)** How can I be sure my scales are on the YOW firmware?
-
-Scanning and connecting via the app will show you a firmware version.
-
-Or, remove a battery for a moment, and replace it. Stock firmware displays a 'Hello' message, but YOW firmware will show a smiley face.
-
-
-
-**Q)** Why did you make this?
-
-See this [blog post](https://www.tomanthony.co.uk/blog/withings-yow-free-wifi-sync/) for details, but mainly because syncing my scales was much buggier than it used to be, and Withings starting to charge people for it made me scared they'd charge everyone at somepoint.
-
-**Q)** How can I help?
-
-There are 3 areas that can help (all are achievable without special equipment):
-
- 1. Adding Windows support to the Python bridge - most of the code should be transferrable but I don't have the hardware to check things.
- 2. Adding support for more models of scales. You must own the model of scales you are adding, and be willing to test against them. You need to be comfortable with modding firmware, or trust AI to do it for you, and be willing to then install that on your own device.
- 3. If you can't contribute firmware, but do own a model of scales (check under the batteries for the model number) not on the [firmware list](CONTRIBUTING.md), then running a Python script can identify the firmware used for that model, which is also useful.
-
-See[CONTRIBUTING.md](CONTRIBUTING.md).
-
-**Q)** Why have you not covered XYZ?
-
-I'm time poor, doing this for fun in my spare time, and wanted to actually release _something_ without sinking loads more hours into it. It works for me as it is, and I'm hoping others can help fill in the gaps.
-
-## Constraints And Current Limits
-
-- The firmware currently supports hostnames over a limited length. WBS06 is max 48 chars. WS-30 is  59 chars.
-- WBS06 HTTPS encrypts traffic but does not authenticate the server certificate or `CertificateVerify` signature. WS-30 uses plaintext HTTP. The bridge, browser and Withings migration client use ordinary verified HTTPS for remote services.
-- Save original firmware/device backups and a recovery plan before OTA. Bluetooth does not read full firmware or expose/control the destination bank. An inactive bank can still supply radio resources; do not erase it casually. [UART recovery tools](tools/README.md).
-
-## Related Projects
-
-There are a few other community projects that relate to this
-
-- [withings-local](https://github.com/pierosavi/withings-local) - supports syncing Withings scales to Homekit over Bluetooth. Doesn't require updating the firmware.
-- [esphome-withings-wpp](https://github.com/NavistAuLabs/esphome-withings-wpp) - allows syncing Withings scales via an ESPHome sensor. Doesn't require updating the firmware.
-- [openScale](https://github.com/oliexdev/openScale) - Open-source weight and body metrics tracker, with support for Bluetooth scales, but no Withings support currently.
+Notes on releases and versioning are in [CONTRIBUTING.md](CONTRIBUTING.md), the changes per version in [CHANGELOG.md](CHANGELOG.md).
 
 ## How this fork was made
 
-The changes in this fork (new UI, analysis and goal projection, German translation, Docker deployment and the deploy script, this documentation) were written largely by [Claude](https://claude.com/claude-code), Anthropic's AI coding assistant, working in Claude Code. The project was initiated and directed by Uwe Schüssler, who runs it in production for his own scales. The firmware patches, the bridge and the original server come from Tom Anthony and the upstream contributors.
+The changes in this fork (new UI, analysis and goal projection, German translation, Docker deployment and the deploy script, this documentation) were written largely by [Claude](https://claude.com/claude-code), Anthropic's AI coding assistant, working in Claude Code. The project was initiated and directed by Uwe Schüssler, who runs it in production for his own scales.
 
 Please keep that in mind when you rely on it: the code has an automated test suite (unit tests for the analysis, server tests, browser tests), but it has not had an independent human code review, and the projection assumptions are heuristics. Bug reports and reviews are very welcome.
+
+## Credits
+
+YourOpenScale would not exist without [YourOwnWeigh](https://github.com/TomAnthony/YourOwnWeigh) by Tom Anthony: the reverse engineering of the scale protocol, the firmware patches for each model, the Bluetooth bridge and the original server are his work, together with the contributors named in the table above and [mbragagnolo](https://github.com/mbragagnolo/), who ported the bridge to Windows. His project, README and [blog post](https://www.tomanthony.co.uk/blog/withings-yow-free-wifi-sync/) explain the background and are the place to follow the upstream work.
 
 ## License
 
 MIT. Copyright (c) 2026 Uwe Schüssler and YourOpenScale contributors, and (c) 2026 Tom Anthony and YourOwnWeigh contributors; see [LICENSE](LICENSE) and [`bridge/LICENSE`](bridge/LICENSE). Bundled third-party software is listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
-
-## Legal
 
 Withings is a trademark of Withings SA. This project is not affiliated with, endorsed by or supported by Withings. Use it at your own risk.
