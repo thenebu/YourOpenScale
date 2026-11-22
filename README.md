@@ -109,7 +109,7 @@ Notes on releases and versioning are in [CONTRIBUTING.md](CONTRIBUTING.md), the 
 
 ## How this fork was made
 
-The changes in this fork (new UI, analysis and goal projection, German translation, Docker deployment and the deploy script, this documentation) were written largely by [Claude](https://claude.com/claude-code), Anthropic's AI coding assistant, working in Claude Code. The project was initiated and directed by Uwe Schüssler, who runs it in production for his own scales.
+The changes in this fork (new UI, analysis and goal projection, German translation, Docker deployment and the deploy script, this documentation) were written largely by [Claude](https://claude.com/claude-code), Anthropic's AI coding assistant, working in Claude Code. The project was initiated and directed by [thenebu](https://github.com/thenebu), who runs it in production for their own scales.
 
 Please keep that in mind when you rely on it: the code has an automated test suite (unit tests for the analysis, server tests, browser tests), but it has not had an independent human code review, and the projection assumptions are heuristics. Bug reports and reviews are very welcome.
 
@@ -119,6 +119,6 @@ YourOpenScale would not exist without [YourOwnWeigh](https://github.com/TomAntho
 
 ## License
 
-MIT. Copyright (c) 2026 Uwe Schüssler and YourOpenScale contributors, and (c) 2026 Tom Anthony and YourOwnWeigh contributors; see [LICENSE](LICENSE) and [`bridge/LICENSE`](bridge/LICENSE). Bundled third-party software is listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+MIT. Copyright (c) 2026 thenebu and YourOpenScale contributors, and (c) 2026 Tom Anthony and YourOwnWeigh contributors; see [LICENSE](LICENSE) and [`bridge/LICENSE`](bridge/LICENSE). Bundled third-party software is listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 Withings is a trademark of Withings SA. This project is not affiliated with, endorsed by or supported by Withings. Use it at your own risk.
