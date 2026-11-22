@@ -1,0 +1,23 @@
+/* Final layer order and imports. Created in WP-00; never edited again. */
+@layer reset, tokens, base, components, shell, charts, pages, legacy;
+
+@import "./tokens.css" layer(tokens);
+@import "./base.css" layer(base);
+@import "./components/link.css" layer(components);
+@import "./components/button.css" layer(components);
+@import "./components/segmented.css" layer(components);
+@import "./components/badge.css" layer(components);
+@import "./components/card.css" layer(components);
+@import "./components/stat.css" layer(components);
+@import "./components/table.css" layer(components);
+@import "./components/form.css" layer(components);
+@import "./components/callout.css" layer(components);
+@import "./components/empty.css" layer(components);
+@import "./components/dialog.css" layer(components);
+@import "./components/toast.css" layer(components);
+@import "./components/progress.css" layer(components);
+@import "./shell.css" layer(shell);
+@import "./charts.css" layer(charts);
+@import "./pages/dashboard.css" layer(pages);
+@import "./pages/overview.css" layer(pages);
+@import "./pages/admin.css" layer(pages);
