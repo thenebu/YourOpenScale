@@ -157,7 +157,7 @@ test("goal produces progress and projection", () => {
   const a = buildUserAnalysis(input(r, { goal, now }));
   assert.equal(a.projection!.status, "on-track");
   assert.ok(a.progress!.fraction > 0.3 && a.progress!.fraction < 1);
-  assert.match(a.summary[1], /At this pace you would reach your goal of 70.0 kg around \w+ 20\d\d/);
+  assert.match(a.summary[1], /(At this pace you would|Since losing weight usually slows down, you would likely) reach your goal of 70.0 kg around \w+ 20\d\d/);
   const stat = a.weight!.yExtent;
   assert.ok(stat[0] <= 70, "y extent includes the goal line");
 });

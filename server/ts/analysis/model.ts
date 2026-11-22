@@ -19,7 +19,7 @@ import { mean, stats } from "./stats.ts";
 import { summarize } from "./summary.ts";
 import { dayNoonUtc, daysBetween, localTime } from "./time.ts";
 import {
-  ewmaTrend, goalProgress, linearRate, projectGoal, trendAt, weeklyRateSeries,
+  ewmaTrend, goalProgress, linearRate, projectGoal, trendAt, weeklyRateSeries, type ProjectionProfile,
 } from "./trend.ts";
 import type {
   Agg, Bucket, CompositionAnalysis, DashboardSummary, DayPoint, Goal, MetricAnalysis, MetricSpec,
@@ -329,7 +329,9 @@ export function buildUserAnalysis(input: AnalysisInput): UserAnalysis {
   const rate = weight?.rate ?? null;
   const goalOut = goal;
   const progress = goal ? goalProgress(trendNow, goal) : null;
-  const projection = goal ? projectGoal(trendNow, rate, goal, now, weightS?.daily) : null;
+  const fatNow = sFat && sFat.trend.length ? lastTrendValue(sFat.trend, end, 30) : null;
+  const profile: ProjectionProfile = { heightCm: user.heightCm, ageYears: user.ageYears, sex: user.sex, fatPct: fatNow };
+  const projection = goal ? projectGoal(trendNow, rate, goal, now, weightS?.daily, profile) : null;
   const weeklyRate = weightS ? inRange(weeklyRateSeries(weightS.trend), ctx.from, ctx.to) : [];
   const periods = weightS ? periodComparisons(weightS.daily, now, zone) : [];
 
@@ -435,7 +437,13 @@ export function buildDashboardSummary(input: {
   const rate = weightS && !stale ? linearRate(weightS.daily, 28, now) : null;
   const trendNow = lastTrend ? lastTrend.v : null;
   const progress = goal ? goalProgress(trendNow, goal) : null;
-  const projection = goal ? projectGoal(trendNow, rate, goal, now, weightS?.daily) : null;
+  const derived = deriveComposition(clean);
+  const sFat = populated(makeSeries(derived, 6, false));
+  const profile: ProjectionProfile = {
+    heightCm: user.heightCm ?? null, ageYears: user.ageYears ?? null, sex: user.sex ?? 0,
+    fatPct: sFat?.trend.length ? lastTrendValue(sFat.trend, now, 30) : null,
+  };
+  const projection = goal ? projectGoal(trendNow, rate, goal, now, weightS?.daily, profile) : null;
 
   let text = rate ? rateText(rate, unit) : t("an.notEnoughRecent");
   if (goal && projection?.status === "on-track" && projection.date)
@@ -450,7 +458,6 @@ export function buildDashboardSummary(input: {
     const prev = meanIn(daily, lastT - 37 * DAY, lastT - 30 * DAY);
     chips.push({ id, label, unit: unit_, value, delta30: prev.n ? value - prev.mean : null, type });
   };
-  const derived = deriveComposition(clean);
   for (const c of CHIPS) {
     const s = populated(makeSeries(COMPOSITION_TYPES.has(c.type) ? derived : clean, c.type, false));
     if (s) addChip(c.id, specLabel(specFor(c.type)!), specFor(c.type)!.unit, c.type, s.daily);

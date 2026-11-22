@@ -6,6 +6,11 @@ All notable changes to YourOpenScale are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-22
+
+### Changed
+- Goal projection for weight loss now assumes the pace eases off as you approach a healthy weight, even when the history shows no curve yet. The assumed floor depends on height, age (older: higher floor) and, when measured, body fat (leaner: floor closer to your weight). The straight line is shown as the earliest date. A curve fitted to your own data still takes precedence.
+
 ## [1.1.0] - 2026-11-22
 
 ### Changed

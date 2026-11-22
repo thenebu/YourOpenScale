@@ -29,8 +29,9 @@ export type Projection = {
   status: ProjectionStatus; goal: number; remaining: number;
   etaDays: number | null; date: string | null; earliest: string | null; latest: string | null;
   requiredPerWeek: number | null;   // only when the goal has a target date
-  /** "decay": flattening-curve fit since the goal start; "linear": straight line at the current rate. */
-  model: "linear" | "decay";
+  /** "decay": flattening-curve fit since the goal start; "prior": pace easing off by an
+   *  assumption from body data; "linear": straight line at the current rate. */
+  model: "linear" | "decay" | "prior";
   plateauKg: number | null;         // fitted level the curve flattens out at (decay model only)
 };
 export type Goal = { kg: number; date: string | null; startKg: number; startAt: number; startManual?: boolean };

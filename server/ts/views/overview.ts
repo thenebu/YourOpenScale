@@ -295,7 +295,7 @@ function projectionText(a: UserAnalysis): string {
     case "on-track": {
       const rate = a.weight?.rate ? t("ov.proj.atRate", { rate: formatRate(a.weight.rate.perWeek, a.unit) }) : "";
       const between = p.earliest && p.latest && month(p.earliest) !== month(p.latest) ? t("ov.proj.between", { a: month(p.earliest), b: month(p.latest) }) : "";
-      return t(p.model === "decay" ? "ov.proj.onTrackDecay" : "ov.proj.onTrack", { rate, when: p.date ? t("ov.proj.around", { date: month(p.date) }) : t("ov.proj.soon"), between });
+      return t(p.model === "decay" ? "ov.proj.onTrackDecay" : p.model === "prior" ? "ov.proj.onTrackPrior" : "ov.proj.onTrack", { rate, when: p.date ? t("ov.proj.around", { date: month(p.date) }) : t("ov.proj.soon"), between });
     }
     case "levels-off": return t("ov.proj.levelsOff", { plateau: formatMass(p.plateauKg ?? p.goal, a.unit, { decimals: 1 }) });
     case "too-slow": return t("ov.proj.tooSlow");

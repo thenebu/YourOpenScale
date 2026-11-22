@@ -36,7 +36,7 @@ export function summarize(a: UserAnalysis): string[] {
     const goal = mass(a.goal.kg);
     if (p.status === "reached") parts.push(t("an.sum.reached", { goal }));
     else if (p.status === "on-track" && p.date) {
-      let s = t(p.model === "decay" ? "an.sum.onTrackDecay" : "an.sum.onTrack", { goal, month: month(p.date) });
+      let s = t(p.model === "decay" ? "an.sum.onTrackDecay" : p.model === "prior" ? "an.sum.onTrackPrior" : "an.sum.onTrack", { goal, month: month(p.date) });
       if (p.earliest && p.latest && month(p.earliest) !== month(p.latest))
         s += t("an.sum.between2", { a: month(p.earliest), b: month(p.latest) });
       else if (p.earliest && !p.latest) s += t("an.sum.earliest", { a: month(p.earliest) });

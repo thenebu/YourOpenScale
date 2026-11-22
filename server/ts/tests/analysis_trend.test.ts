@@ -4,7 +4,7 @@ import { synth } from "./fixtures/synthetic.ts";
 import { dailySeries } from "../analysis/series.ts";
 import { specFor } from "../analysis/spec.ts";
 import {
-  ewmaTrend, goalProgress, linearRate, projectGoal, trendAt, weeklyRateSeries,
+  ewmaTrend, goalProgress, linearRate, projectGoal, reserveFloorKg, trendAt, weeklyRateSeries,
 } from "../analysis/trend.ts";
 import { rateText } from "../analysis/rate_text.ts";
 import { dayNoonUtc } from "../analysis/time.ts";
@@ -224,4 +224,32 @@ test("projectGoal falls back to the straight line for short or straight historie
   assert.equal(projectGoal(92, ratePair(short), g, short[29].t, short).model, "linear");
   const straight = series(Array.from({ length: 90 }, (_, i) => 100 - 0.1 * i + 0.1 * Math.sin(i * 1.3)));
   assert.equal(projectGoal(91, ratePair(straight), g, straight[89].t, straight).model, "linear");
+});
+
+test("reserveFloorKg: rises with age, closer to current weight at low body fat, null without data", () => {
+  const base = { heightCm: 180, ageYears: 30, sex: 0 as const, fatPct: null };
+  const f30 = reserveFloorKg(92, base)!;
+  assert.ok(Math.abs(f30 - 21 * 1.8 ** 2) < 1e-9);
+  assert.ok(reserveFloorKg(92, { ...base, ageYears: 60 })! > f30);
+  // 15% fat at 80 kg: 68 kg lean / 0.88 = 77.3 kg beats the BMI floor of 68 kg
+  assert.ok(Math.abs(reserveFloorKg(80, { ...base, fatPct: 15 })! - 68 / 0.88) < 1e-9);
+  assert.equal(reserveFloorKg(92, { heightCm: null, ageYears: 30, sex: 0, fatPct: null }), null);
+  assert.ok(reserveFloorKg(70, base)! <= 68); // always leaves a reserve
+});
+
+test("projectGoal prior: later than the straight line, later again for older / leaner people, not for gaining", () => {
+  const g: Goal = { kg: 84, date: null, startKg: 98, startAt: T0 };
+  const r = rateOf(-1.1, 0.1);
+  const young = { heightCm: 180, ageYears: 30, sex: 0 as const, fatPct: null };
+  const lin = projectGoal(92, r, g, NOW);
+  const p1 = projectGoal(92, r, g, NOW, [], young);
+  assert.equal(p1.model, "prior");
+  assert.ok(p1.etaDays! > lin.etaDays!);
+  assert.ok(p1.earliest! <= p1.date! && p1.date! <= p1.latest!);
+  assert.ok(projectGoal(92, r, g, NOW, [], { ...young, ageYears: 65 }).etaDays! > p1.etaDays!);
+  assert.ok(projectGoal(92, r, g, NOW, [], { ...young, fatPct: 24 }).etaDays! > p1.etaDays!);
+  // goal below the assumed floor still gets a finite date
+  assert.equal(projectGoal(92, r, { ...g, kg: 66 }, NOW, [], young).status, "on-track");
+  // weight gain goals stay linear
+  assert.equal(projectGoal(70, rateOf(0.5, 0.05), { ...g, kg: 75 }, NOW, [], young).model, "linear");
 });

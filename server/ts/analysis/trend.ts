@@ -158,12 +158,46 @@ export function fitDecay(daily: DayPoint[], startAt: number, trendNow: number, g
   };
 }
 
+/** Body data that shapes the expected slow-down. Everything is optional. */
+export type ProjectionProfile = { heightCm: number | null; ageYears: number | null; sex: 0 | 1; fatPct: number | null };
+
+/** Healthy-weight BMI used as the "little left to lose" level; rises slowly with age (older bodies hold on harder). */
+const FLOOR_BMI = 21;
+const FLOOR_BMI_PER_YEAR = 0.05;
+/** Lowest sensible body-fat share (men, women); also rises a little with age. */
+const MIN_FAT = [0.12, 0.2];
+const MIN_FAT_PER_YEAR = 0.001;
+/** The assumed floor always leaves at least this much to lose. */
+const MIN_RESERVE_KG = 2;
+
+/**
+ * Weight below which losing gets very hard: the higher of the weight at the age-adjusted floor BMI and
+ * the weight at which the current lean mass would carry the minimum fat share. Null without height and body fat.
+ */
+export function reserveFloorKg(weightKg: number, p: ProjectionProfile): number | null {
+  const over = Math.max(0, (p.ageYears ?? 30) - 30);
+  const candidates: number[] = [];
+  if (p.heightCm && p.heightCm > 100) candidates.push((FLOOR_BMI + FLOOR_BMI_PER_YEAR * over) * (p.heightCm / 100) ** 2);
+  if (p.fatPct !== null && p.fatPct > 2 && p.fatPct < 70)
+    candidates.push((weightKg * (1 - p.fatPct / 100)) / (1 - (MIN_FAT[p.sex] + MIN_FAT_PER_YEAR * over)));
+  if (!candidates.length) return null;
+  return Math.min(Math.max(...candidates), weightKg - MIN_RESERVE_KG);
+}
+
+/** Pace proportional to the reserve above the floor: a curve with tau = reserve / current pace. */
+function priorEta(w: number, goalKg: number, floor: number, perDay: number): number {
+  // A goal at or below the floor would never be reached; keep the floor clearly under the goal.
+  const a = Math.min(floor, goalKg - Math.max(1, 0.3 * (w - goalKg)));
+  return ((w - a) / perDay) * Math.log((w - a) / (goalKg - a));
+}
+
 export function projectGoal(
   trendNow: number | null,
   rate: Rate | null,
   goal: Goal,
   now: number,
   history: DayPoint[] = [],
+  profile: ProjectionProfile | null = null,
 ): Projection {
   const base: Projection = {
     status: "insufficient", goal: goal.kg, remaining: 0, etaDays: null, date: null,
@@ -195,6 +229,19 @@ export function projectGoal(
     };
   }
   const etaDays = remaining / b;
+  // No curve visible in the data yet: for weight loss assume the pace eases off as the reserve shrinks.
+  const floor = profile && remaining < 0 ? reserveFloorKg(trendNow, profile) : null;
+  if (floor !== null) {
+    const perDay = Math.abs(b);
+    const eta = priorEta(trendNow, goal.kg, floor, perDay);
+    if (eta > 730) return { ...base, model: "prior", status: "too-slow", etaDays: eta };
+    // Slowest plausible: floor halfway to the goal. Fastest: the straight line.
+    const slow = priorEta(trendNow, goal.kg, (floor + goal.kg) / 2, perDay);
+    return {
+      ...base, model: "prior", status: "on-track", etaDays: eta, date: at(eta),
+      earliest: at(Math.min(etaDays, eta)), latest: slow <= 1095 ? at(Math.max(slow, eta)) : null,
+    };
+  }
   if (etaDays > 730) return { ...base, status: "too-slow", etaDays };
   const se = rate.seWeek / 7;
   const sign = Math.sign(b);
