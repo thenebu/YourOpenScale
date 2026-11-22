@@ -16,7 +16,7 @@ import { isIP } from "node:net";
 import { LocalSqlite } from "./sqlite.ts";
 import { assetPath } from "./assets.ts";
 import { isPwaPath, pwaResponse } from "./pwa.ts";
-import { bodyLimit, handleApp, type AppEnv } from "./app.ts";
+import { allowedBodyLimit, handleApp, requestTooLarge, type AppEnv } from "./app.ts";
 import { captureWithings, firmwareOffer } from "./withings_capture.ts";
 import { NodeBridge } from "./bridge_node.ts";
 import { forwardedScheme, isTrustedProxyPeer } from "./proxy.ts";
@@ -171,12 +171,24 @@ export function localListener(
     try {
       let size = 0;
       const chunks: Buffer[] = [];
-      const limit = bodyLimit(url.pathname);
+      const tooLarge = async () => {
+        const probe = new Request(url, { method: "GET", headers: Object.fromEntries(Object.entries(incoming.headers).filter(([k, v]) => v !== undefined && k !== "host").map(([k, v]) => [k, Array.isArray(v) ? v.join(", ") : String(v)])) });
+        const r = await requestTooLarge(probe, env);
+        outgoing.writeHead(413, { ...Object.fromEntries(r.headers) });
+        outgoing.end(Buffer.from(await r.arrayBuffer()));
+      };
+      // Large limits apply only to a valid admin session; everyone else gets the small default.
+      const limit = await allowedBodyLimit(env.DB, new Request(url, { method: "GET", headers: { cookie: incoming.headers.cookie ?? "" } }));
+      const declared = Number(incoming.headers["content-length"]);
+      if (Number.isFinite(declared) && declared > limit) {
+        await tooLarge();
+        incoming.resume();
+        return;
+      }
       for await (const chunk of incoming) {
         size += chunk.length;
         if (size > limit) {
-          outgoing.writeHead(413);
-          outgoing.end("Request too large");
+          await tooLarge();
           return;
         }
         chunks.push(chunk);

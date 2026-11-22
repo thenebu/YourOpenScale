@@ -126,3 +126,58 @@ test("scale-only HTTP listener ingests WBS02 CGI uploads without exposing applic
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("listener gates large body limits on a valid admin session and rejects oversize before reading", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "yow-local-limit-"));
+  const store = new LocalSqlite(join(directory, "test.sqlite3"));
+  const hosts = new Set<string>();
+  const server = createServer(localListener({ DB: store.asD1() }, false, hosts));
+  try {
+    const listening = once(server, "listening");
+    server.listen(0, "127.0.0.1");
+    await listening;
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const authority = `127.0.0.1:${address.port}`;
+    hosts.add(authority);
+    const base = `http://${authority}`;
+    const origin = { Origin: base };
+    const first = await fetch(`${base}/setup`);
+    const csrf = /name="_csrf" value="([a-f0-9]+)"/.exec(await first.text())![1];
+    const setup = await fetch(`${base}/setup`, {
+      method: "POST",
+      headers: { ...origin, Cookie: first.headers.getSetCookie()[0].split(";")[0], "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ password: "test-password", confirm: "test-password", _csrf: csrf }),
+      redirect: "manual",
+    });
+    const session = setup.headers.getSetCookie().map((c) => c.split(";")[0]).find((c) => c.startsWith("yow_session="));
+    assert.ok(session);
+    const post = (path: string, megabytes: number, cookie?: string) => fetch(base + path, {
+      method: "POST",
+      headers: { ...origin, ...(cookie ? { Cookie: cookie } : {}), "Content-Type": "application/x-www-form-urlencoded" },
+      body: "x".repeat(megabytes * 1024 * 1024),
+      redirect: "manual",
+    });
+    // Unauthenticated: the small limit applies, whatever the route.
+    assert.equal((await post("/import/withings", 30)).status, 413);
+    assert.equal((await post("/api/backup/import", 5)).status, 413);
+    assert.equal((await post("/import/withings", 11, "yow_session=" + "0".repeat(64))).status, 413);
+    // Declared oversize is refused before any body is sent.
+    const declared = await fetch(base + "/import/withings", { method: "POST", headers: { ...origin, "Content-Length": String(30 * 1024 * 1024) }, body: "x" }).catch(() => null);
+    assert.ok(!declared || declared.status === 413);
+    // Authenticated: past the 256 kB default, reaching the handler (CSRF rejection, not 413).
+    assert.equal((await post("/import/withings", 11, session)).status, 403);
+    assert.equal((await post("/api/backup/import", 5, session)).status, 403);
+    // Above the route limit: styled translated 413 for an authenticated import request.
+    const big = await post("/api/backup/import", 11, session);
+    assert.equal(big.status, 413);
+    assert.match(await big.text(), /<h1>Import not completed|<html/);
+    const bigZip = await post("/import/withings", 33, session);
+    assert.equal(bigZip.status, 413);
+    assert.match(await bigZip.text(), /at most 32 MiB/);
+  } finally {
+    server.close();
+    store.close?.();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
