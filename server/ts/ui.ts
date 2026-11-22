@@ -114,7 +114,7 @@ function navMarkup(csrf: string, active: string, opts: LayoutOpts): string {
       ? `<a class="nav-link" href="/users/${e(users[0].id)}/overview"${active.startsWith("/users/") ? ' aria-current="page"' : ""}>Overview</a>`
       : "";
   const sheetPeople = users.length >= 2
-    ? `<p class="nav-sheet-heading">People</p>${users.map((u) => `<a class="nav-link" href="/users/${e(u.id)}/overview">${e(u.name)}</a>`).join("")}`
+    ? `<p class="nav-sheet-heading">Overviews</p>${users.map((u) => `<a class="nav-link" href="/users/${e(u.id)}/overview">${e(u.name)}</a>`).join("")}`
     : users.length === 1
       ? `<a class="nav-link" href="/users/${e(users[0].id)}/overview">Overview</a>`
       : "";

@@ -51,7 +51,7 @@ test("layout: People dropdown needs two users", () => {
   const two = page({ users: [{ id: 1, name: "Al<ex>" }, { id: 2, name: "Sam" }] });
   assert.match(two, /<details class="nav-dropdown">/);
   assert.match(two, /href="\/users\/1\/overview">Al&lt;ex&gt;</);
-  assert.match(two, /nav-sheet-heading">People/);
+  assert.match(two, /nav-sheet-heading">Overviews/);
   const one = page({ users: [{ id: 7, name: "Solo" }] });
   assert.doesNotMatch(one, /nav-dropdown">/);
   assert.match(one, /href="\/users\/7\/overview"[^>]*>Overview/);
