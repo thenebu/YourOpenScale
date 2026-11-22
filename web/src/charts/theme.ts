@@ -16,17 +16,17 @@ export type ChartTheme = {
 // Light-theme fallbacks, so charts stay readable if a token is missing.
 const FALLBACK: Record<string, string> = {
   "--font-sans": "system-ui, sans-serif",
-  "--color-bg": "#f4f7f7", "--color-surface": "#ffffff", "--color-surface-raised": "#ffffff",
-  "--color-text": "#172227", "--color-text-muted": "#4d5f64", "--color-text-subtle": "#5f7378",
-  "--color-border": "#dfe7e8", "--color-accent": "#087a76",
-  "--chart-grid": "#e6eced", "--chart-axis": "#5f7378", "--chart-raw": "#087a768c",
-  "--chart-trend": "#087a76", "--chart-band": "#087a761f", "--chart-goal": "#9a5b00",
-  "--chart-outlier": "#b3261e", "--chart-crosshair": "#4d5f64", "--chart-compare": "#8a9da1",
-  "--chart-fat": "#c4581b", "--chart-lean": "#2f6db5", "--chart-muscle": "#12896a",
-  "--chart-water": "#3a9bd5", "--chart-bone": "#8a6fb0", "--chart-hr": "#b4487f",
-  "--chart-heat-0": "#eef3f4", "--chart-heat-1": "#c7e8e3", "--chart-heat-2": "#8fd0c6",
-  "--chart-heat-3": "#3fb0a5", "--chart-heat-4": "#087a76",
-  "--chart-bmi-under": "#e8f0fb", "--chart-bmi-normal": "#e3f4f1", "--chart-bmi-over": "#fff4e0",
+  "--color-bg": "#f5f6fa", "--color-surface": "#ffffff", "--color-surface-raised": "#ffffff",
+  "--color-text": "#1a1d2e", "--color-text-muted": "#4c5270", "--color-text-subtle": "#5d6482",
+  "--color-border": "#e0e3ee", "--color-accent": "#4a40c4",
+  "--chart-grid": "#e6e8f1", "--chart-axis": "#5d6482", "--chart-raw": "#4a40c48c",
+  "--chart-trend": "#4a40c4", "--chart-band": "#4a40c41f", "--chart-goal": "#9a5b00",
+  "--chart-outlier": "#b3261e", "--chart-crosshair": "#4c5270", "--chart-compare": "#9aa0b8",
+  "--chart-fat": "#c4581b", "--chart-lean": "#2f6db5", "--chart-muscle": "#2f8f3a",
+  "--chart-water": "#2a9cc4", "--chart-bone": "#9a6bb5", "--chart-hr": "#b4487f",
+  "--chart-heat-0": "#eef0f6", "--chart-heat-1": "#c9c5f5", "--chart-heat-2": "#9d97ec",
+  "--chart-heat-3": "#6d64d8", "--chart-heat-4": "#4a40c4",
+  "--chart-bmi-under": "#e8f0fb", "--chart-bmi-normal": "#e2f4ea", "--chart-bmi-over": "#fff4e0",
   "--chart-bmi-obese": "#fdeceb",
 };
 
