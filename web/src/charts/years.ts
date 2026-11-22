@@ -98,13 +98,16 @@ export function mountYearOverlay(el: HTMLElement, years: YearSeries[], ctx: Year
   });
 }
 
-type YearWire = YearSeries | [number, [number, number][]];
+type YearWire = YearSeries | { year: number; points: [number, number][] } | [number, [number, number][]];
 
 /** <div data-island="years" data-payload="id" [data-type="1"]> reads payload.patterns.years: [{year, points:[{doy,v}]}] or [year, [[doy, v], …]] (native units; null when < 2 years). */
 export function mountYearsIsland(el: HTMLElement): Mounted {
   const payload = payloadOf(el);
   const raw = (payload as unknown as { patterns?: { years?: YearWire[] | null } }).patterns?.years;
   if (!raw || raw.length < 2) throw new Error("payload has no patterns.years");
-  const years: YearSeries[] = raw.map((y) => (Array.isArray(y) ? { year: y[0], points: y[1].map((p) => ({ doy: p[0], v: p[1] })) } : y));
+  const pt = (p: [number, number] | { doy: number; v: number }) => (Array.isArray(p) ? { doy: p[0], v: p[1] } : p);
+  const years: YearSeries[] = raw.map((y) =>
+    Array.isArray(y) ? { year: y[0], points: y[1].map(pt) } : { year: y.year, points: (y.points as ([number, number] | { doy: number; v: number })[]).map(pt) },
+  );
   return mountYearOverlay(el, years, { unit: payload.unit, type: Number(el.dataset.type ?? 1) });
 }
