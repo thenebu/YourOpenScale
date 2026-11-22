@@ -12,7 +12,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY web ./web
-COPY server/ts/analysis ./server/ts/analysis
+COPY server/ts ./server/ts
 RUN npm run web:build
 
 FROM node:24-slim AS runtime
