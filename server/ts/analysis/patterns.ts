@@ -1,4 +1,5 @@
 /** Weekday / time-of-day effects, histogram, comparisons (WP-06). Pure. */
+import { t } from "../i18n/index.ts";
 import { extent } from "./extent.ts";
 import { mean, median, quantile, sd, centredBaseline } from "./stats.ts";
 import { addDays, dayNoonUtc, daysBetween, localTime, weekdayOf } from "./time.ts";
@@ -7,7 +8,7 @@ import type {
   Unit, WeekdayEffect, YearSeries,
 } from "./types.ts";
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAYS = ["wd.0", "wd.1", "wd.2", "wd.3", "wd.4", "wd.5", "wd.6"] as const;
 const KG_PER_LB = 1 / 2.2046226218487757;
 
 /** Residuals of daily values against the centred baseline, keyed by day. */
@@ -32,7 +33,7 @@ export function weekdayEffect(daily: DayPoint[]): WeekdayEffect[] | null {
   const means = groups.map((g) => mean(g));
   const centre = mean(means);
   return groups.map((g, weekday) => ({
-    weekday, label: WEEKDAYS[weekday], mean: means[weekday] - centre, se: sd(g) / Math.sqrt(g.length), n: g.length,
+    weekday, label: t(WEEKDAYS[weekday]), mean: means[weekday] - centre, se: sd(g) / Math.sqrt(g.length), n: g.length,
   }));
 }
 
@@ -120,21 +121,21 @@ export function periodComparisons(daily: DayPoint[], now: number, zone: string |
   };
   const rows: { id: PeriodComparison["id"]; label: string; a: [string, string]; b: [string, string] }[] = [];
   rows.push({
-    id: "week", label: "Last 7 days vs the 7 before",
+    id: "week", label: t("an.per.week"),
     a: [addDays(today, -6), today], b: [addDays(today, -13), addDays(today, -7)],
   });
   const monthStart = `${today.slice(0, 7)}-01`;
   const prevEnd = addDays(monthStart, -1);
   rows.push({
-    id: "month", label: "This month vs last month",
+    id: "month", label: t("an.per.month"),
     a: [monthStart, today], b: [`${prevEnd.slice(0, 7)}-01`, prevEnd],
   });
   rows.push({
-    id: "yoy30", label: "Last 30 days vs a year ago",
+    id: "yoy30", label: t("an.per.yoy30"),
     a: [addDays(today, -29), today], b: [shiftYears(addDays(today, -29), -1), shiftYears(today, -1)],
   });
   rows.push({
-    id: "ytd", label: "This year to date vs last year",
+    id: "ytd", label: t("an.per.ytd"),
     a: [`${today.slice(0, 4)}-01-01`, today], b: [shiftYears(`${today.slice(0, 4)}-01-01`, -1), shiftYears(today, -1)],
   });
   const out: PeriodComparison[] = [];

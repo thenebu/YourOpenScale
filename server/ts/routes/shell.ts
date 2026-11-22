@@ -1,4 +1,5 @@
 /** Shell routes such as "/theme" and the PWA files (WP-10, WP-16). */
+import { LANG_COOKIE, isLocale } from "../i18n/index.ts";
 import type { ForkCtx } from "./index.ts";
 
 const YEAR = 365 * 24 * 60 * 60;
@@ -30,8 +31,21 @@ function refererPath(request: Request, origin: string): string | null {
   }
 }
 
+/** GET /lang?set=en|de&back=...: stores the language cookie, then redirects like /theme. */
+function languageRoute(ctx: ForkCtx): Response {
+  const set = ctx.url.searchParams.get("set");
+  if (!isLocale(set)) return new Response("Unknown language", { status: 400 });
+  const origin = ctx.url.origin;
+  const back = safeBack(ctx.url.searchParams.get("back") ?? refererPath(ctx.request, origin), origin);
+  const secure = ctx.url.protocol === "https:" ? "; Secure" : "";
+  const cookie = `${LANG_COOKIE}=${set}; Path=/; Max-Age=${YEAR}; SameSite=Lax${secure}`;
+  return new Response(null, { status: 303, headers: { Location: back, "Set-Cookie": cookie, "Cache-Control": "no-store" } });
+}
+
 export async function handleShellRoute(ctx: ForkCtx): Promise<Response | null> {
-  if (ctx.path !== "/theme" || (ctx.method !== "GET" && ctx.method !== "HEAD")) return null;
+  if (ctx.method !== "GET" && ctx.method !== "HEAD") return null;
+  if (ctx.path === "/lang") return languageRoute(ctx);
+  if (ctx.path !== "/theme") return null;
   const set = ctx.url.searchParams.get("set");
   if (set !== "system" && set !== "light" && set !== "dark") return new Response("Unknown theme", { status: 400 });
   const origin = ctx.url.origin;

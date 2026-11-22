@@ -9,9 +9,10 @@ import type { Opt, Tip } from "./bars.ts";
 import type { ECharts } from "./echarts.ts";
 import { lowerBound, slice } from "./lod.ts";
 import type { Mounted } from "./mount.ts";
+import { t as i18n, tag } from "../i18n/index.ts";
 
 const day = (t: number) =>
-  new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+  new Intl.DateTimeFormat(tag(), { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
     .format(new Date(t * 1000)).replace(/^(\p{L}+) /u, "$1, ");
 
 // ---------------------------------------------------------------------------------------------
@@ -51,16 +52,16 @@ export function mountComposition(
     const t = nav[i].t;
     const rows: Tip["rows"] = [];
     const notes: string[] = [];
-    for (const [m, name, color] of [[fat, "Fat mass", "fat"], [lean, "Lean mass", "lean"]] as const) {
+    for (const [m, name, color] of [[fat, i18n("chart.fatMass"), "fat"], [lean, i18n("chart.leanMass"), "lean"]] as const) {
       const tr = trendAt(m.trend, t);
       const v = valueAt(m, t);
-      rows.push({ swatch: "line", color: color === "fat" ? "var(--chart-fat)" : "var(--chart-lean)", label: `${name} (trend)`, value: tr === null ? "–" : fmt(tr) });
-      if (v !== null) notes.push(`${name} that day: ${fmt(v)}`);
+      rows.push({ swatch: "line", color: color === "fat" ? "var(--chart-fat)" : "var(--chart-lean)", label: i18n("chart.trendOf", { name }), value: tr === null ? "–" : fmt(tr) });
+      if (v !== null) notes.push(i18n("chart.thatDay", { name, value: fmt(v) }));
     }
     return { title: day(t), rows, notes };
   };
   return setupChart(el, {
-    label: ctx.label ?? "Fat mass and lean mass over time",
+    label: ctx.label ?? i18n("chart.compositionLabel"),
     responsive: true,
     count: () => nav.length,
     tip,
@@ -106,7 +107,7 @@ export function mountComposition(
         return {
           grid: { left: 44, right, top: 12, bottom: 26 },
           xAxis: xAxis(true, 0), yAxis: yAxis(Math.min(fl, ll), Math.max(fh, lh), 0),
-          series: [...series(lean, theme.lean, "Lean", 0, 0), ...series(fat, theme.fat, "Fat", 0, 0)],
+          series: [...series(lean, theme.lean, i18n("chart.lean"), 0, 0), ...series(fat, theme.fat, i18n("chart.fat"), 0, 0)],
         };
       }
       return {
@@ -117,7 +118,7 @@ export function mountComposition(
         ],
         xAxis: [xAxis(false, 0), xAxis(true, 1)],
         yAxis: [yAxis(ll, lh, 0), yAxis(fl, fh, 1)],
-        series: [...series(lean, theme.lean, "Lean", 0, 0), ...series(fat, theme.fat, "Fat", 1, 1)],
+        series: [...series(lean, theme.lean, i18n("chart.lean"), 0, 0), ...series(fat, theme.fat, i18n("chart.fat"), 1, 1)],
       };
     },
   });
@@ -134,28 +135,28 @@ export function mountCompositionBars(el: HTMLElement, months: MonthlyComposition
   const disp = (v: number | null) => (v === null ? null : Number(toDisplay(v, ctx.unit).toFixed(3)));
   const fmt = (v: number | null) => (v === null ? "–" : formatMass(v, ctx.unit, { decimals: 1 }));
   const short = (m: MonthlyComposition) =>
-    new Intl.DateTimeFormat("en-GB", { month: "short", year: "2-digit", timeZone: "UTC" }).format(new Date(m.t * 1000)).replace(/ (\d\d)$/, " ’$1");
+    new Intl.DateTimeFormat(tag(), { month: "short", year: "2-digit", timeZone: "UTC" }).format(new Date(m.t * 1000)).replace(/ (\d\d)$/, " ’$1");
   const parts = [
-    { key: "fat", name: "Fat", color: "fat" },
-    { key: "muscle", name: "Muscle", color: "muscle" },
-    { key: "bone", name: "Bone", color: "bone" },
-    { key: "otherLean", name: "Other lean", color: "lean" },
+    { key: "fat", name: i18n("chart.fat"), color: "fat" },
+    { key: "muscle", name: i18n("chart.muscle"), color: "muscle" },
+    { key: "bone", name: i18n("chart.bone"), color: "bone" },
+    { key: "otherLean", name: i18n("chart.otherLean"), color: "lean" },
   ] as const;
   const tip = (i: number): Tip => {
     const m = months[i];
     const total = parts.reduce((a, p) => a + (m[p.key] ?? 0), 0);
     const colorOf = (c: string) => `var(--chart-${c})`;
     return {
-      title: new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(m.t * 1000)),
+      title: new Intl.DateTimeFormat(tag(), { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(m.t * 1000)),
       rows: [
         ...parts.map((p) => ({ swatch: "dot" as const, color: colorOf(p.color), label: p.name, value: fmt(m[p.key]) })),
-        { swatch: "line" as const, color: colorOf("water"), label: "Water", value: fmt(m.water) },
+        { swatch: "line" as const, color: colorOf("water"), label: i18n("chart.water"), value: fmt(m.water) },
       ],
-      notes: [`Total of the bars ${fmt(total)}`],
+      notes: [i18n("chart.barsTotal", { value: fmt(total) })],
     };
   };
   return setupChart(el, {
-    label: ctx.label ?? "Monthly body composition",
+    label: ctx.label ?? i18n("chart.monthlyLabel"),
     className: "chart--bars",
     count: () => months.length,
     tip,
@@ -174,7 +175,7 @@ export function mountCompositionBars(el: HTMLElement, months: MonthlyComposition
             data: months.map((m) => disp(m[p.key])),
           })),
           {
-            name: "Water", type: "line", symbol: "circle", symbolSize: 4, animation: false, z: 5, connectNulls: false,
+            name: i18n("chart.water"), type: "line", symbol: "circle", symbolSize: 4, animation: false, z: 5, connectNulls: false,
             lineStyle: { color: theme.water, width: 2, type: "dashed" }, itemStyle: { color: theme.water },
             data: months.map((m) => disp(m.water)),
           },

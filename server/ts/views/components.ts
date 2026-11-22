@@ -1,5 +1,6 @@
 /** Server-rendered HTML helpers (WP-04). Pure: all text arguments are plain data and are escaped here. */
 import { escapeHtml as e } from "../ui.ts";
+import { t } from "../i18n/index.ts";
 import { icon } from "./icons.ts";
 
 type Tone = "neutral" | "good" | "warn" | "bad" | "info" | "accent";
@@ -163,7 +164,7 @@ export function chartFigure(opts: {
   fallbackSvg?: string;
 }): string {
   const id = e(opts.id);
-  return `<figure class="chart-card" id="${id}"><h3 class="chart-title" id="${id}-title">${e(opts.title)}${opts.unitLabel ? ` <span class="chart-unit">${e(opts.unitLabel)}</span>` : ""}</h3><p class="chart-summary" id="${id}-summary">${e(opts.summary)}</p><div class="chart-tools"></div><div class="chart" data-island="${e(opts.island)}" data-ref="${e(opts.dataRef)}" data-payload="${e(opts.dataRef)}" tabindex="0" role="group" aria-labelledby="${id}-title" aria-describedby="${id}-summary" style="--chart-h:${Math.round(Number(opts.height)) || 240}px">${opts.fallbackSvg ? `<div class="chart-fallback">${opts.fallbackSvg}</div>` : ""}</div>${opts.legendHtml ?? ""}<details class="chart-data"><summary>Show data table</summary><div class="table-wrap">${opts.tableHtml}</div></details></figure>`;
+  return `<figure class="chart-card" id="${id}"><h3 class="chart-title" id="${id}-title">${e(opts.title)}${opts.unitLabel ? ` <span class="chart-unit">${e(opts.unitLabel)}</span>` : ""}</h3><p class="chart-summary" id="${id}-summary">${e(opts.summary)}</p><div class="chart-tools"></div><div class="chart" data-island="${e(opts.island)}" data-ref="${e(opts.dataRef)}" data-payload="${e(opts.dataRef)}" tabindex="0" role="group" aria-labelledby="${id}-title" aria-describedby="${id}-summary" style="--chart-h:${Math.round(Number(opts.height)) || 240}px">${opts.fallbackSvg ? `<div class="chart-fallback">${opts.fallbackSvg}</div>` : ""}</div>${opts.legendHtml ?? ""}<details class="chart-data"><summary>${e(t("chart.showTable"))}</summary><div class="table-wrap">${opts.tableHtml}</div></details></figure>`;
 }
 
 export function dataTable(

@@ -1,4 +1,5 @@
 /** Outliers, duplicates and the data-quality report (WP-06). Pure. */
+import { specLabel } from "./labels.ts";
 import { specFor } from "./spec.ts";
 import { mad, median } from "./stats.ts";
 import { daysBetween, localTime } from "./time.ts";
@@ -95,7 +96,7 @@ export function qualityReport(readings: Reading[], now: number): QualityReport {
     const spec = specFor(type);
     if (!spec || type < 0) continue;
     const count = flagOutliers(readings, type).size;
-    if (count > 0) outliers.push({ type, label: spec.label, count });
+    if (count > 0) outliers.push({ type, label: specLabel(spec), count });
   }
   const times = readings.filter((r) => r.t <= now + FUTURE_TOLERANCE).map((r) => r.t).sort((a, b) => a - b);
   const gaps: QualityReport["gaps"] = [];

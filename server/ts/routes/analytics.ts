@@ -6,6 +6,7 @@ import { buildDashboardSummary, buildUserAnalysis, type UserInfo } from "../anal
 import { serializeAnalysis, serializeDashboard } from "../analysis/serialize.ts";
 import { RANGES } from "../analysis/spec.ts";
 import type { Agg, Goal, RangeKey, Reading, Unit } from "../analysis/types.ts";
+import { t } from "../i18n/index.ts";
 import { loadGoal, loadReadings, saveGoal } from "../data/readings_query.ts";
 import { dashboardView } from "../views/dashboard.ts";
 import { overviewView } from "../views/overview.ts";
@@ -118,7 +119,7 @@ async function dashboard(ctx: ForkCtx): Promise<Response> {
     zone = scale?.time_zone ?? null;
   }
   const body = dashboardView(summaries.map((s) => s.summary), { now, lastWeighIn, zone });
-  return ctx.page("Dashboard", body, "/", { entries: ["app"] });
+  return ctx.page(t("page.dashboard"), body, "/", { entries: ["app"] });
 }
 
 async function overview(ctx: ForkCtx, id: number): Promise<Response> {
@@ -186,19 +187,19 @@ async function saveGoalForm(ctx: ForkCtx, id: number): Promise<Response> {
   const weight = text("goal_weight").replace(",", ".");
   if (!weight) {
     await saveGoal(ctx.db, id, null);
-    return ctx.go(`${back}#progress`, "Goal removed");
+    return ctx.go(`${back}#progress`, t("msg.goalRemoved"));
   }
   const unit = await displayUnit(ctx.db);
   const entered = Number(weight);
-  if (!/^\d+(\.\d+)?$/.test(weight) || !Number.isFinite(entered)) return fail("Enter the goal weight as a number");
+  if (!/^\d+(\.\d+)?$/.test(weight) || !Number.isFinite(entered)) return fail(t("msg.goalNumber"));
   const kg = entered / toDisplay(1, unit);
-  if (kg < 20 || kg > 350) return fail("The goal weight must be between 20 and 350 kg");
+  if (kg < 20 || kg > 350) return fail(t("msg.goalRange"));
   const now = Math.floor(Date.now() / 1000);
   const dateText = text("goal_date");
   let date: string | null = null;
   if (dateText) {
-    const t = parseDay(dateText);
-    if (t === null || t + DAY <= now) return fail("The target date must be a date in the future");
+    const day = parseDay(dateText);
+    if (day === null || day + DAY <= now) return fail(t("msg.goalDateFuture"));
     date = dateText;
   }
   const existing = await loadGoal(ctx.db, id);
@@ -211,7 +212,7 @@ async function saveGoalForm(ctx: ForkCtx, id: number): Promise<Response> {
     goal = { kg, date, startKg: start, startAt: now };
   }
   await saveGoal(ctx.db, id, goal);
-  return ctx.go(`${back}#progress`, "Goal saved");
+  return ctx.go(`${back}#progress`, t("msg.goalSaved"));
 }
 
 export async function handleAnalyticsRoute(ctx: ForkCtx): Promise<Response | null> {

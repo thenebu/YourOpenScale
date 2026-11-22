@@ -8,6 +8,7 @@ import {
 import { activeUsers, countUnassigned, loadReadings } from "./data/readings_query.ts";
 import { flagOutliers } from "./analysis/quality.ts";
 import { handleForkRoute } from "./routes/index.ts";
+import { negotiateLocale, t, withLocale } from "./i18n/index.ts";
 import { themeFromCookie } from "./routes/util.ts";
 import {
   commitWithingsImport,
@@ -124,7 +125,7 @@ async function pbkdf2(
 }
 async function passwordHash(password: string): Promise<string> {
   if (password.length < 8 || password.length > 1024)
-    throw new Error("Password must contain 8 to 1024 characters");
+    throw new Error(t("msg.passwordLength"));
   const salt = crypto.getRandomValues(new Uint8Array(16));
   // Workers WebCrypto caps PBKDF2 at 100,000 iterations. Use the same
   // password-hash format in both Node and Worker deployments.
@@ -342,7 +343,7 @@ function formNumber(form: FormData, key: string): number {
   return value;
 }
 function canonicalMac(value: string): string {
-  if (!MAC.test(value.trim())) throw new Error("Invalid MAC address");
+  if (!MAC.test(value.trim())) throw new Error(t("msg.invalidMac"));
   return value.replace(/[:-]/g, "").toUpperCase();
 }
 function parseJson(value: string): any {
@@ -356,7 +357,7 @@ function dateAge(value: string): number {
     date.toISOString().slice(0, 10) !== value ||
     date.valueOf() > Date.now()
   ) {
-    throw new Error("Invalid birth date");
+    throw new Error(t("msg.invalidBirthDate"));
   }
   return (
     Math.round(((Date.now() - date.valueOf()) / 86400000 / 365.2425) * 10) / 10
@@ -422,7 +423,7 @@ async function readingsKeyset(
 function safeError(error: unknown): string {
   return error instanceof Error
     ? error.message.slice(0, 180)
-    : "Request failed";
+    : t("msg.requestFailed");
 }
 
 async function activeMembers(db: D1Database, scaleId: number): Promise<Row[]> {
@@ -662,7 +663,7 @@ async function stageCapture(
   raw: string,
 ): Promise<void> {
   const scale = await one(db, "SELECT id,mac FROM scales WHERE id=?", scaleId);
-  if (!scale) throw new Error("Choose a known scale");
+  if (!scale) throw new Error(t("msg.chooseKnownScale"));
   const capture = parseCapture(raw);
   if (capture.mac !== scale.mac)
     throw new Error("Capture belongs to a different scale");
@@ -893,7 +894,7 @@ function parsedUser(form: FormData): {
     weight > 500 ||
     scales.some((id) => !Number.isInteger(id) || id < 1)
   )
-    throw new Error("Invalid profile fields");
+    throw new Error(t("msg.invalidProfile"));
   return { name, short, height, age, dob, sex, weight, scales };
 }
 
@@ -1342,7 +1343,7 @@ async function enrollDevice(
   label =
     label.trim() ||
     `${scaleModel(record.model)?.label.replace(/ \(.*\)$/, "") ?? record.model} ${record.mac.slice(-4)}`;
-  if (label.length > 80) throw new Error("Scale label is too long");
+  if (label.length > 80) throw new Error(t("msg.scaleLabelLong"));
   if (zone) zoneTriplet(zone);
   const existing = await one(
     db,
@@ -1590,7 +1591,12 @@ export function bodyLimit(path: string): number {
   return 256000;
 }
 
-export async function handleApp(
+/** Entry point: resolves the UI language once (cookie, Accept-Language, English) and runs the whole request in it. */
+export function handleApp(request: Request, env: AppEnv): Promise<Response> {
+  return withLocale(negotiateLocale(request), () => handleAppInner(request, env));
+}
+
+async function handleAppInner(
   request: Request,
   env: AppEnv,
 ): Promise<Response> {
@@ -1681,7 +1687,8 @@ export async function handleApp(
     !cookieValue(request) &&
     path !== "/setup" &&
     path !== "/login" &&
-    path !== "/theme"
+    path !== "/theme" &&
+    path !== "/lang"
   ) {
     return redirect(adminConfigured ? "/login" : "/setup");
   }
@@ -1782,15 +1789,15 @@ export async function handleApp(
       if (path === "/api/backup/import") {
         const file = form.get("backup");
         if (!(file instanceof File) || file.size > 10 * 1024 * 1024)
-          throw new Error("Choose a backup file of at most 10 MiB");
+          throw new Error(t("msg.chooseBackup"));
         const staged = await stageBackup(
           db,
           await file.text(),
           browser.token_hash,
         );
         return page(
-          "Review Backup Import",
-          `<section><h1>Review Backup Import</h1><dl>${Object.entries(
+          t("page.reviewBackup"),
+          `<section><h1>${escapeHtml(t("bk.review"))}</h1><dl>${Object.entries(
             staged.counts,
           )
             .map(
@@ -1799,13 +1806,13 @@ export async function handleApp(
             )
             .join(
               "",
-            )}</dl><form action="/api/backup/commit" method="post"><input type="hidden" name="_csrf" value="${csrf}"><input type="hidden" name="import_id" value="${staged.id}"><input type="hidden" name="digest" value="${staged.digest}"><label><input type="radio" name="mode" value="merge" checked> Add Missing Data (Keep Existing Edits)</label><label><input type="radio" name="mode" value="replace"> Replace Household Data</label><p>Replacement removes current users, readings and devices. <a href="/api/backup/export">Export Current Data First</a>.</p>${staged.hasAccess ? '<label><input type="checkbox" name="restore_access" value="1"> Restore Access Settings (Use The Backup’s Passwords And Sign Out)</label>' : ""}<label><input type="checkbox" name="confirmed" value="1" required> I Have Reviewed This Import</label><div class="dialog-actions"><button>Import Backup</button><a href="/settings">Cancel</a></div></form></section>`,
+            )}</dl><form action="/api/backup/commit" method="post"><input type="hidden" name="_csrf" value="${csrf}"><input type="hidden" name="import_id" value="${staged.id}"><input type="hidden" name="digest" value="${staged.digest}"><label><input type="radio" name="mode" value="merge" checked> ${escapeHtml(t("bk.merge"))}</label><label><input type="radio" name="mode" value="replace"> ${escapeHtml(t("bk.replace"))}</label><p>${escapeHtml(t("bk.replaceText"))} <a href="/api/backup/export">${escapeHtml(t("bk.exportFirst"))}</a>.</p>${staged.hasAccess ? `<label><input type="checkbox" name="restore_access" value="1"> ${escapeHtml(t("bk.restoreAccess"))}</label>` : ""}<label><input type="checkbox" name="confirmed" value="1" required> ${escapeHtml(t("bk.confirm"))}</label><div class="dialog-actions"><button>${escapeHtml(t("bk.import"))}</button><a href="/settings">${escapeHtml(t("bk.cancel"))}</a></div></form></section>`,
           "/settings",
         );
       }
       if (path === "/api/backup/commit") {
         if (formText(form, "confirmed") !== "1")
-          throw new Error("Confirm the reviewed import first");
+          throw new Error(t("msg.confirmReviewed"));
         const restore = formText(form, "restore_access") === "1";
         await commitBackup(
           db,
@@ -1823,14 +1830,14 @@ export async function handleApp(
         return go(
           restore ? "/login" : "/settings",
           restore
-            ? "Backup restored. Sign in with the backup’s admin password."
-            : "Backup imported. Current passwords retained.",
+            ? t("msg.backupRestored")
+            : t("msg.backupImported"),
         );
       }
     } catch (error) {
       return page(
-        "Import Not Completed",
-        `<section><h1>Import Not Completed</h1><p>${escapeHtml(safeError(error))}</p><a href="/settings">Back To Settings</a></section>`,
+        t("page.importNotCompleted"),
+        `<section><h1>${escapeHtml(t("page.importNotCompleted"))}</h1><p>${escapeHtml(safeError(error))}</p><a href="/settings">${escapeHtml(t("page.backToSettings"))}</a></section>`,
         "/settings",
       );
     }
@@ -1845,7 +1852,7 @@ export async function handleApp(
       if (path === "/import/withings") {
         const file = form.get("export");
         if (!(file instanceof File) || file.size > 64 * 1024 * 1024)
-          throw new Error("Choose the export ZIP (at most 64 MiB)");
+          throw new Error(t("msg.chooseZip"));
         const parsed = await parseExportZip(
           new Uint8Array(await file.arrayBuffer()),
         );
@@ -1867,7 +1874,7 @@ export async function handleApp(
           (s) => meta.mac && String(s.mac).toLowerCase() === meta.mac,
         );
         return page(
-          "Review Withings Import",
+          t("page.reviewWithings"),
           withingsPreviewPage(
             csrf,
             id,
@@ -1882,7 +1889,7 @@ export async function handleApp(
       }
       if (path === "/import/withings/commit") {
         if (formText(form, "confirmed") !== "1")
-          throw new Error("Confirm the reviewed import first");
+          throw new Error(t("msg.confirmReviewed"));
         const importId = formText(form, "import_id");
         await stagedMeta(db, importId, browser.token_hash);
         const choice = formText(form, "user_id");
@@ -1900,7 +1907,7 @@ export async function handleApp(
             "SELECT id,name FROM users WHERE id=?",
             Number(choice),
           );
-          if (!existing) throw new Error("Choose a user");
+          if (!existing) throw new Error(t("msg.chooseUser"));
           user = { id: Number(existing.id), name: String(existing.name) };
           return user.id;
         };
@@ -1914,13 +1921,13 @@ export async function handleApp(
         );
         return go(
           `/users/${user.id}/overview?range=all`,
-          `Imported ${result.inserted} weigh-ins for ${user.name}; ${result.existing} already present, ${result.invalid} skipped`,
+          t("msg.imported", { inserted: result.inserted, name: user.name, existing: result.existing, invalid: result.invalid }),
         );
       }
     } catch (error) {
       return page(
-        "Import Not Completed",
-        `<section><h1>Import Not Completed</h1><p>${escapeHtml(safeError(error))}</p><a href="/import/withings">Back</a></section>`,
+        t("page.importNotCompleted"),
+        `<section><h1>${escapeHtml(t("page.importNotCompleted"))}</h1><p>${escapeHtml(safeError(error))}</p><a href="/import/withings">${escapeHtml(t("page.back"))}</a></section>`,
         "/users",
       );
     }
@@ -1961,13 +1968,13 @@ export async function handleApp(
   if (!adminConfigured) {
     if (path !== "/setup") return go("/setup");
     return page(
-      "First-Run Setup",
+      t("page.setup"),
       setupPage(csrf, !!env.YOW_BOOTSTRAP_TOKEN, browser.is_admin === 2),
     );
   }
   if (path === "/setup") return go("/login");
   if (path === "/login")
-    return loggedIn ? go("/") : page("Sign In", loginPage(csrf));
+    return loggedIn ? go("/") : page(t("page.login"), loginPage(csrf));
   if (!loggedIn) return go("/login");
   if (path === "/readings") {
     const metrics = await observedMetrics(db);
@@ -2010,7 +2017,7 @@ export async function handleApp(
     const first = keyset.rows[0];
     const last = keyset.rows.at(-1);
     return page(
-      "Readings",
+      t("page.readings"),
       readingsPage(
         keyset.rows,
         users,
@@ -2022,9 +2029,9 @@ export async function handleApp(
           filter: {
             value: userFilter,
             items: [
-              { value: "all", label: "All" },
+              { value: "all", label: t("common.all") },
               ...users.map((u) => ({ value: String(u.id), label: String(u.name) })),
-              { value: "unassigned", label: "Unassigned", count: unassignedCount },
+              { value: "unassigned", label: t("common.unassigned"), count: unassignedCount },
             ],
           },
           newer: keyset.hasNewer && first ? link(`after=${first.id}`) : undefined,
@@ -2035,7 +2042,7 @@ export async function handleApp(
     );
   }
   if (path === "/import/withings")
-    return page("Import Withings Data", withingsImportPage(csrf), "/users");
+    return page(t("page.importWithings"), withingsImportPage(csrf), "/users");
   const userReadings = /^\/users\/(\d+)\/readings$/.exec(path);
   if (userReadings) {
     const id = Number(userReadings[1]);
@@ -2072,7 +2079,7 @@ export async function handleApp(
     const first = keyset.rows[0];
     const last = keyset.rows.at(-1);
     return page(
-      `${user.name} raw readings`,
+      t("page.rawReadings", { name: String(user.name) }),
       userReadingsPage(
         user,
         keyset.rows,
@@ -2090,7 +2097,7 @@ export async function handleApp(
     );
   }
   if (path === "/firmware") {
-    return page("Firmware Bridge", firmwareWorkspace(csrf), "/firmware");
+    return page(t("page.firmware"), firmwareWorkspace(csrf), "/firmware");
   }
   if (path === "/scales" || /^\/scales\/\d+$/.test(path)) {
     const scales = await rows(db, "SELECT * FROM scales ORDER BY label,id");
@@ -2115,7 +2122,7 @@ export async function handleApp(
           scale.id,
         )
       ).map((r) => r.user_id);
-    return page("Scales", scalesWorkspace(scales, csrf, localUsers), "/scales");
+    return page(t("page.scales"), scalesWorkspace(scales, csrf, localUsers), "/scales");
   }
   if (path === "/users" || /^\/users\/\d+$/.test(path)) {
     const users = await rows(
@@ -2203,7 +2210,7 @@ export async function handleApp(
     }
     const importScaleId = Number(url.searchParams.get("import_scale"));
     return page(
-      "Users",
+      t("page.users"),
       usersPage(
         users,
         scales,
@@ -2220,7 +2227,7 @@ export async function handleApp(
   }
   if (path === "/sync")
     return page(
-      "Sync",
+      t("page.sync"),
       syncPage(
         url.origin,
         await rows(db, "SELECT * FROM users WHERE active=1 ORDER BY name"),
@@ -2230,7 +2237,7 @@ export async function handleApp(
   if (path === "/preferences" || path === "/settings") {
     const mode = await setting(db, "sync_password_mode");
     return page(
-      "Settings",
+      t("page.settings"),
       settingsWorkspace(
         csrf,
         (await setting(db, "display_weight_unit")) ?? "kg",
@@ -2262,10 +2269,10 @@ async function browserPost(
     if (await setting(db, "admin_password")) return go("/login");
     if (bootstrapToken && session.is_admin !== 2) {
       if (await authLimit(db, request, "bootstrap"))
-        return go("/setup", "Too many attempts; try again in ten minutes");
+        return go("/setup", t("msg.tooManyAttempts"));
       if (!equal(formText(form, "bootstrap_token"), bootstrapToken)) {
         await authLimit(db, request, "bootstrap", true);
-        return go("/setup", "Invalid bootstrap token");
+        return go("/setup", t("msg.invalidBootstrap"));
       }
       await authLimit(db, request, "bootstrap", false);
       if (formText(form, "step") === "bootstrap") {
@@ -2288,7 +2295,7 @@ async function browserPost(
       }
     }
     if (formText(form, "password") !== formText(form, "confirm"))
-      return go("/setup", "Passwords do not match");
+      return go("/setup", t("msg.passwordsMismatch"));
     try {
       const encoded = await passwordHash(formText(form, "password"));
       const separate = formText(form, "separate_sync") === "1";
@@ -2296,7 +2303,7 @@ async function browserPost(
         separate &&
         formText(form, "sync_password") !== formText(form, "sync_confirm")
       )
-        throw new Error("Sync passwords do not match");
+        throw new Error(t("msg.syncPasswordsMismatch"));
       const syncHash = separate
         ? await passwordHash(formText(form, "sync_password"))
         : null;
@@ -2327,7 +2334,7 @@ async function browserPost(
       if (inserted[0].meta.changes !== 1) return go("/login");
       return go(
         "/",
-        "Administration password set",
+        t("msg.passwordSet"),
         await rotateSession(db, session, true, secure),
       );
     } catch (error) {
@@ -2338,19 +2345,19 @@ async function browserPost(
     const encoded = await setting(db, "admin_password");
     if (!encoded) return go("/setup");
     if (await authLimit(db, request, "login"))
-      return go("/login", "Too many attempts; try again in ten minutes");
+      return go("/login", t("msg.tooManyAttempts"));
     if (!(await passwordMatches(formText(form, "password"), encoded))) {
       await authLimit(db, request, "login", true);
-      return go("/login", "Invalid password");
+      return go("/login", t("msg.invalidPassword"));
     }
     await authLimit(db, request, "login", false);
-    return go("/", "Signed in", await rotateSession(db, session, true, secure));
+    return go("/", t("msg.signedIn"), await rotateSession(db, session, true, secure));
   }
   if (!loggedIn) return go("/login");
   if (path === "/logout")
     return go(
       "/login",
-      "Signed out",
+      t("msg.signedOut"),
       await rotateSession(db, session, false, secure),
     );
 
@@ -2364,10 +2371,10 @@ async function browserPost(
             await setting(db, "admin_password"),
           ))
         )
-          throw new Error("Current admin password is incorrect");
+          throw new Error(t("msg.currentAdminWrong"));
         const separate = formText(form, "separate") === "1";
         if (separate && formText(form, "new") !== formText(form, "confirm"))
-          throw new Error("Passwords do not match");
+          throw new Error(t("msg.passwordsMismatch"));
         const encoded = separate
           ? await passwordHash(formText(form, "new"))
           : null;
@@ -2384,8 +2391,8 @@ async function browserPost(
         return go(
           "/settings",
           separate
-            ? "Separate Sync API password saved"
-            : "Sync API now uses the admin password",
+            ? t("msg.syncSeparateSaved")
+            : t("msg.syncUsesAdmin"),
         );
       }
       if (!["admin_password", "api_password"].includes(purpose))
@@ -2396,9 +2403,9 @@ async function browserPost(
         purpose === "admin_password" ? "current" : "current_admin",
       );
       if (!(await passwordMatches(current, old)))
-        throw new Error("Current admin password is incorrect");
+        throw new Error(t("msg.currentAdminWrong"));
       if (formText(form, "new") !== formText(form, "confirm"))
-        throw new Error("New passwords do not match");
+        throw new Error(t("msg.newPasswordsMismatch"));
       const encoded = await passwordHash(formText(form, "new"));
       if (purpose === "admin_password") {
         const nextVersion =
@@ -2414,28 +2421,28 @@ async function browserPost(
         ]);
         return go(
           "/settings",
-          "Admin password changed; other sessions were signed out",
+          t("msg.adminChanged"),
         );
       }
       await db.batch([
         saveSetting(db, "api_password", encoded),
         saveSetting(db, "sync_password_mode", "separate"),
       ]);
-      return go("/settings", "Readings API password set");
+      return go("/settings", t("msg.readingsPasswordSet"));
     }
     if (path === "/preferences") {
       const unit = formText(form, "weight_unit");
       if (!["kg", "lb", "st"].includes(unit))
-        throw new Error("Invalid display unit");
+        throw new Error(t("msg.invalidUnit"));
       await db.batch([saveSetting(db, "display_weight_unit", unit)]);
-      return go("/settings", "Display weight unit saved");
+      return go("/settings", t("msg.unitSaved"));
     }
     if (path === "/scales") {
       const label = formText(form, "label").trim();
       const mac = canonicalMac(formText(form, "mac"));
       const secret = formText(form, "secret");
       if (!label || label.length > 80 || !secret || secret.length > 256)
-        throw new Error("Supply a label and exact scale secret");
+        throw new Error(t("msg.needLabelSecret"));
       const result = await run(
         db,
         "INSERT INTO scales(label,model,mac,secret) VALUES(?,?,?,?)",
@@ -2446,13 +2453,13 @@ async function browserPost(
       );
       return go(
         `/scales#scale-${result.meta.last_row_id}`,
-        "Scale added. Import a reviewed capture to stage its settings and users.",
+        t("msg.scaleAdded"),
       );
     }
     if (path === "/scales/import-ble") {
       const file = form.get("record");
       if (!(file instanceof File))
-        throw new Error("Choose a device enrollment JSON file");
+        throw new Error(t("msg.chooseDeviceJson"));
       const record = parseDeviceRecord(await file.text());
       const scale = await enrollDevice(
         db,
@@ -2463,58 +2470,56 @@ async function browserPost(
       if (scaleModel(scale.model)?.localRoster)
         return go(
           `/scales#scale-${scale.id}`,
-          "Scale saved. Choose its users in Edit Settings before its first sync.",
+          t("msg.scaleSavedChooseUsers"),
         );
       try {
-        if (!captureWithings) throw new Error("Withings import is unavailable");
+        if (!captureWithings) throw new Error(t("msg.withingsUnavailable"));
         await fetchAndApplyProfile(db, scale, captureWithings, scale.time_zone);
         return go(
           `/users?preview_scale=${scale.id}`,
-          "Scale imported with settings. Choose any new users to add.",
+          t("msg.scaleImported"),
         );
       } catch {
         return go(
           `/scales#scale-${scale.id}`,
-          "Scale saved. Withings import is incomplete; use Finish Device Import to retry.",
+          t("msg.scaleSavedIncomplete"),
         );
       }
     }
 
     if (path === "/users/fetch-withings") {
       if (!captureWithings)
-        throw new Error(
-          "Direct Withings capture is unavailable in this deployment",
-        );
+        throw new Error(t("msg.directCaptureUnavailable"));
       const id = formInteger(form, "scale_id");
       const scale = await one(db, "SELECT * FROM scales WHERE id=?", id);
-      if (!scale) throw new Error("Choose a known scale");
+      if (!scale) throw new Error(t("msg.chooseKnownScale"));
       await fetchAndApplyProfile(db, scale, captureWithings, scale.time_zone);
       return go(
         `/users?preview_scale=${id}`,
-        "Device settings imported. Choose any new users to add.",
+        t("msg.settingsFetched"),
       );
     }
     const scaleCapture = /^\/scales\/(\d+)\/capture$/.exec(path);
     if (scaleCapture) {
       const file = form.get("capture");
       if (!(file instanceof File))
-        throw new Error("Choose a capture JSON file");
+        throw new Error(t("msg.chooseCaptureJson"));
       const id = Number(scaleCapture[1]);
       await stageCapture(db, id, await file.text());
       return go(
         `/users?preview_scale=${id}`,
-        "Capture staged. Review users before import.",
+        t("msg.captureStaged"),
       );
     }
     if (path === "/users/import-withings") {
       const id = formInteger(form, "scale_id");
       const file = form.get("capture");
       if (!(file instanceof File))
-        throw new Error("Choose a capture JSON file");
+        throw new Error(t("msg.chooseCaptureJson"));
       await stageCapture(db, id, await file.text());
       return go(
         `/users?preview_scale=${id}`,
-        "Capture staged. Review users before import.",
+        t("msg.captureStaged"),
       );
     }
     const scaleSettings = /^\/scales\/(\d+)\/capture-settings$/.exec(path);
@@ -2546,7 +2551,7 @@ async function browserPost(
         ...values,
         id,
       );
-      return go(`/scales#scale-${id}`, "Captured scale settings imported");
+      return go(`/scales#scale-${id}`, t("msg.capturedSettingsImported"));
     }
     const scalePath = /^\/scales\/(\d+)$/.exec(path);
     if (scalePath) {
@@ -2557,7 +2562,7 @@ async function browserPost(
       if (purpose === "device_config") {
         const label = formText(form, "label").trim();
         const zone = formText(form, "time_zone").trim() || null;
-        if (!label || label.length > 80) throw new Error("Invalid scale name");
+        if (!label || label.length > 80) throw new Error(t("msg.invalidScaleName"));
         if (zone) zoneTriplet(zone);
         // Preserve imported readiness, roster state and response fixtures.
         // Advanced fields are editable only for the model that consumes them.
@@ -2570,14 +2575,14 @@ async function browserPost(
             ids.length > 8 ||
             ids.some((v) => !Number.isSafeInteger(v) || v < 1)
           )
-            throw new Error("Choose one to eight users for this scale");
+            throw new Error(t("msg.chooseUsersRange"));
           const available = await rows(
             db,
             `SELECT id FROM users WHERE active=1 AND id IN (${ids.map(() => "?").join(",")})`,
             ...ids,
           );
           if (available.length !== ids.length)
-            throw new Error("Choose active household users");
+            throw new Error(t("msg.chooseActiveUsers"));
           await db.batch([
             db.prepare("DELETE FROM scale_users WHERE scale_id=?").bind(id),
             ...ids.map((user, rank) =>
@@ -2640,13 +2645,13 @@ async function browserPost(
         }
         return go(
           `/scales#scale-${id}`,
-          "Device saved. Time-zone changes apply on the next Wi-Fi sync.",
+          t("msg.deviceSaved"),
         );
       }
       if (purpose === "basic_config") {
         const label = formText(form, "label").trim(),
           zone = formText(form, "time_zone").trim() || null;
-        if (!label || label.length > 80) throw new Error("Invalid scale name");
+        if (!label || label.length > 80) throw new Error(t("msg.invalidScaleName"));
         if (zone) zoneTriplet(zone);
         await run(
           db,
@@ -2657,13 +2662,13 @@ async function browserPost(
         );
         return go(
           `/scales#scale-${id}`,
-          "Settings saved for the next Wi-Fi connection",
+          t("msg.settingsSavedWifi"),
         );
       }
       if (purpose === "config") {
         const label = formText(form, "label").trim();
         const timeZone = formText(form, "time_zone").trim() || null;
-        if (!label || label.length > 80) throw new Error("Invalid scale name");
+        if (!label || label.length > 80) throw new Error(t("msg.invalidScaleName"));
         if (timeZone) {
           if (timeZone.length > 100 || /^[./]/.test(timeZone))
             throw new Error("Invalid IANA time zone");
@@ -2683,7 +2688,7 @@ async function browserPost(
           );
           return go(
             `/scales#scale-${id}`,
-            "Name and time zone saved; other on-scale settings are retained",
+            t("msg.nameTimeZoneSaved"),
           );
         }
         const goff = formInteger(form, "goff"),
@@ -2725,12 +2730,12 @@ async function browserPost(
           roster,
           id,
         );
-        return go(`/scales#scale-${id}`, "Scale configuration saved");
+        return go(`/scales#scale-${id}`, t("msg.scaleConfigSaved"));
       }
       if (purpose === "secret") {
         const secret = formText(form, "secret");
         if (!secret || secret.length > 256)
-          throw new Error("Secret must contain 1 to 256 characters");
+          throw new Error(t("msg.secretLength"));
         await db.batch([
           db.prepare("UPDATE scales SET secret=? WHERE id=?").bind(secret, id),
           db
@@ -2739,7 +2744,7 @@ async function browserPost(
         ]);
         return go(
           `/scales#scale-${id}`,
-          "Scale secret replaced; sessions invalidated",
+          t("msg.secretReplaced"),
         );
       }
       if (purpose === "fixture") {
@@ -2752,7 +2757,7 @@ async function browserPost(
         if (!column) throw new Error("Unknown fixture endpoint");
         const raw = validatedFixture(formText(form, "fixture"), endpoint);
         await run(db, `UPDATE scales SET ${column}=? WHERE id=?`, raw, id);
-        return go(`/scales#scale-${id}`, `${endpoint} fixture saved`);
+        return go(`/scales#scale-${id}`, t("msg.fixtureSaved", { endpoint }));
       }
       if (purpose === "roster_snapshot") {
         await run(
@@ -2763,7 +2768,7 @@ async function browserPost(
         );
         return go(
           `/scales#scale-${id}`,
-          "Roster baseline saved; one-shot delivery remains off",
+          t("msg.rosterBaselineSaved"),
         );
       }
       return new Response("Bad Request", { status: 400 });
@@ -2794,13 +2799,13 @@ async function browserPost(
         null,
         new Set(selected),
       );
-      return go("/users", "Selected users imported; existing users retained");
+      return go("/users", t("msg.selectedUsersImported"));
     }
 
     if (path === "/users") {
       const user = parsedUser(form);
       const id = await createUser(db, user);
-      return go("/users", `User ${user.name} added as stable scale ID ${id}`);
+      return go("/users", t("msg.userAdded", { name: user.name, id }));
     }
     const userDelete = /^\/users\/(\d+)\/delete$/.exec(path);
     if (userDelete) {
@@ -2873,7 +2878,7 @@ async function browserPost(
       await db.batch(statements);
       return go(
         "/users",
-        "User deleted locally; their readings are now unassigned",
+        t("msg.userDeleted"),
       );
     }
     const userPath = /^\/users\/(\d+)$/.exec(path);
@@ -2887,7 +2892,7 @@ async function browserPost(
           db.prepare("DELETE FROM scale_users WHERE user_id=?").bind(id),
         ]);
         await queueRosterEdits(db, id);
-        return go("/users", "User retired; historical readings remain");
+        return go("/users", t("msg.userRetired"));
       }
       const user = parsedUser(form);
       const memberships = await updateMemberships(db, id, user.scales);
@@ -2911,7 +2916,7 @@ async function browserPost(
       await queueRosterEdits(db, id);
       return go(
         "/users",
-        "User updated; roster edits will be sent to supported scales on their next connection",
+        t("msg.userUpdated"),
       );
     }
     const readingAssign = /^\/readings\/(\d+)\/assign$/.exec(path);
@@ -2919,7 +2924,7 @@ async function browserPost(
       const id = Number(readingAssign[1]),
         userId = formInteger(form, "user_id");
       if (!(await one(db, "SELECT id FROM users WHERE id=?", userId)))
-        throw new Error("Unknown user");
+        throw new Error(t("msg.unknownUser"));
       const [result] = await db.batch([
         db
           .prepare(
@@ -2929,9 +2934,9 @@ async function browserPost(
         refreshRecognitionWeight(db, userId),
       ]);
       if (result.meta.changes !== 1)
-        throw new Error("Reading is missing or already assigned");
+        throw new Error(t("msg.readingMissingAssigned"));
       await queueRosterEdits(db, userId);
-      return go("/readings", "Reading assigned");
+      return go("/readings", t("msg.readingAssigned"));
     }
     const readingDelete = /^\/readings\/(\d+)\/delete$/.exec(path);
     if (readingDelete) {
@@ -2943,8 +2948,8 @@ async function browserPost(
       return go(
         "/readings",
         result.meta.changes
-          ? "Unassigned reading deleted"
-          : "Reading is missing or assigned",
+          ? t("msg.readingDeleted")
+          : t("msg.readingMissingOrAssigned"),
       );
     }
     return new Response("Not Found", { status: 404 });

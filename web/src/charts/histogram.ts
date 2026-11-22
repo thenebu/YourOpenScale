@@ -6,6 +6,7 @@ import { niceAxis, payloadOf, plain, setupChart, valueY } from "./bars.ts";
 import type { Opt, Tip } from "./bars.ts";
 import type { ECharts } from "./echarts.ts";
 import type { Mounted } from "./mount.ts";
+import { t as i18n } from "../i18n/index.ts";
 
 export type HistogramCtx = { unit: Unit; type?: number; label?: string };
 
@@ -18,13 +19,13 @@ export function mountHistogram(el: HTMLElement, h: Histogram, ctx: HistogramCtx)
   const tip = (i: number): Tip => {
     const b = h.bins[i];
     return {
-      title: `${plain(disp(b.from))} to ${plain(disp(b.to))}${isMass ? ` ${ctx.unit === "kg" ? "kg" : "lb"}` : ""}`,
-      rows: [{ swatch: "none", color: "", label: "Days", value: `${b.count}${total ? ` (${Math.round((100 * b.count) / total)}%)` : ""}` }],
+      title: `${i18n("chart.range", { from: plain(disp(b.from)), to: plain(disp(b.to)) })}${isMass ? ` ${ctx.unit === "kg" ? "kg" : "lb"}` : ""}`,
+      rows: [{ swatch: "none", color: "", label: i18n("chart.days"), value: `${b.count}${total ? ` (${Math.round((100 * b.count) / total)}%)` : ""}` }],
       notes: [],
     };
   };
   return setupChart(el, {
-    label: ctx.label ?? "Distribution of daily values",
+    label: ctx.label ?? i18n("chart.histLabel"),
     className: "chart--histogram",
     trigger: "item",
     responsive: true,
@@ -37,15 +38,15 @@ export function mountHistogram(el: HTMLElement, h: Histogram, ctx: HistogramCtx)
       const mid = (lo + hi) / 2;
       const line = (name: string, v: number, color: string, type: "solid" | "dashed", row: number): Opt => ({
         xAxis: disp(v),
-        lineStyle: { color, width: name === "Now" ? 2.5 : 1.5, type },
+        lineStyle: { color, width: name === i18n("chart.now") ? 2.5 : 1.5, type },
         label: {
           show: true, formatter: `${name} ${plain(disp(v))}`, color: theme.text, fontSize: 12,
           position: "end", align: disp(v) > mid ? "right" : "left", offset: [disp(v) > mid ? -4 : 4, 14 * row + 12],
           backgroundColor: "transparent",
         },
       });
-      const markers: Opt[] = [line("Mean", h.mean, theme.text, "solid", 0), line("Median", h.median, theme.textMuted, "dashed", 1)];
-      if (h.current != null) markers.push(line("Now", h.current, theme.accent, "solid", 2));
+      const markers: Opt[] = [line(i18n("chart.mean2"), h.mean, theme.text, "solid", 0), line(i18n("chart.median"), h.median, theme.textMuted, "dashed", 1)];
+      if (h.current != null) markers.push(line(i18n("chart.now"), h.current, theme.accent, "solid", 2));
       return {
         grid: { left: 36, right: 12, top: 8, bottom: 28 },
         xAxis: {

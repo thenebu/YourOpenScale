@@ -1,3 +1,4 @@
+import { t } from "../i18n/index.ts";
 /** `[data-copy]` and `[data-copy-target]` buttons copy their value (or the text of `data-copy-target`) and show a toast. */
 function region(): HTMLElement {
   let el = document.querySelector<HTMLElement>(".toast-region");
@@ -30,9 +31,9 @@ export function initCopy(): void {
     const text = button.dataset.copy || (source instanceof HTMLInputElement ? source.value : source?.textContent) || "";
     try {
       await navigator.clipboard.writeText(text.trim());
-      toast("Copied");
+      toast(t("ui.copied"));
     } catch {
-      toast("Copy failed", "bad");
+      toast(t("ui.copyFailed"), "bad");
     }
   });
 }

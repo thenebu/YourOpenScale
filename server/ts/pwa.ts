@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { LOCALES, negotiateLocale, t, withLocale, type Locale } from "./i18n/index.ts";
 import { assetPath, assetTags, precacheFiles } from "./assets.ts";
 
 const PUBLIC_DIR = fileURLToPath(new URL("../../web/public", import.meta.url));
@@ -23,11 +24,21 @@ export function isPwaPath(path: string): boolean {
 
 const SECURITY = { "X-Content-Type-Options": "nosniff" };
 
-/** Static branded fallback page: no user data, works offline, no JS needed. */
-export function offlinePage(): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Offline · YourOpenScale</title><meta name="robots" content="noindex"><link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">${assetTags(["app"])}</head><body>
-<main class="offline"><img src="/icons/icon-192.png" width="96" height="96" alt=""><h1>You are offline</h1><p>YourOpenScale needs a connection to show your readings. Nothing is stored on this device while you are signed in.</p><p><a class="btn btn-primary" href="/">Retry</a></p></main></body></html>`;
+/**
+ * Static branded fallback page: no user data, works offline, no JS needed. The service worker caches one copy,
+ * so it carries both languages: `primary` (the cookie or Accept-Language choice at fetch time) first, the other below.
+ */
+export function offlinePage(primary: Locale = "en"): string {
+  const block = (locale: Locale, main: boolean) =>
+    withLocale(
+      locale,
+      () => `<section lang="${locale}"${main ? "" : ' class="offline-alt"'}>${main ? "" : "<hr>"}<${main ? "h1" : "h2"}>${t("offline.title")}</${main ? "h1" : "h2"}><p>${t("offline.text")}</p>${main ? `<p><a class="btn btn-primary" href="/">${t("offline.retry")}</a></p>` : ""}</section>`,
+    );
+  const order = [primary, ...LOCALES.filter((l) => l !== primary)];
+  const title = withLocale(primary, () => t("offline.heading"));
+  return `<!doctype html><html lang="${primary}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>${title} · YourOpenScale</title><meta name="robots" content="noindex"><link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">${assetTags(["app"])}</head><body>
+<main class="offline"><img src="/icons/icon-192.png" width="96" height="96" alt="">${order.map((l, i) => block(l, i === 0)).join("")}</main></body></html>`;
 }
 
 /** Everything the worker may precache. Hashed build files, icons, manifest and the offline page only. */
@@ -52,7 +63,7 @@ export function buildVersion(): string {
     h.update(u);
     if (u.startsWith("/icons/")) h.update(readFileSync(join(PUBLIC_DIR, u.slice(1))));
   }
-  h.update(offlinePage());
+  for (const l of LOCALES) h.update(offlinePage(l));
   h.update(readFileSync(join(PUBLIC_DIR, "manifest.webmanifest")));
   return h.digest("hex").slice(0, 12);
 }
@@ -71,12 +82,12 @@ function serviceWorker(): Response {
   });
 }
 
-export function pwaResponse(path: string): Response {
+export function pwaResponse(path: string, request?: Request): Response {
   try {
     if (path === "/sw.js") return serviceWorker();
     if (path === "/offline")
-      return new Response(offlinePage(), {
-        headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", ...SECURITY },
+      return new Response(offlinePage(request ? negotiateLocale(request) : "en"), {
+        headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", Vary: "Cookie, Accept-Language", ...SECURITY },
       });
     if (path === "/manifest.webmanifest")
       return new Response(readFileSync(join(PUBLIC_DIR, "manifest.webmanifest")), {

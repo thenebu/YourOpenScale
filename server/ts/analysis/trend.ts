@@ -84,15 +84,7 @@ export function linearRate(daily: DayPoint[], windowDays: number, now: number): 
   };
 }
 
-const isStable = (r: Rate) => Math.abs(r.perWeek) < Math.max(0.1, 1.96 * r.seWeek);
-
-export function rateText(rate: Rate | null, unit: Unit): string {
-  if (!rate) return "Not enough weigh-ins in the last 4 weeks to estimate a rate";
-  if (isStable(rate)) return "Stable over the last 4 weeks";
-  const mass = unit === "kg" ? Math.abs(rate.perWeek) : Math.abs(rate.perWeek) * KG_TO_LB;
-  const text = mass.toFixed(mass < 0.1 ? 2 : 1);
-  return `${rate.perWeek < 0 ? "Losing" : "Gaining"} about ${text} ${unit === "kg" ? "kg" : "lb"} per week`;
-}
+export const isStable = (r: Rate) => Math.abs(r.perWeek) < Math.max(0.1, 1.96 * r.seWeek);
 
 export function projectGoal(
   trendNow: number | null,

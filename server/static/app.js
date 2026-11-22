@@ -64,7 +64,10 @@ document.querySelectorAll("select[data-timezone-select]").forEach((select) => {
     ...new Set(["UTC", current, ...(saved ? [saved] : []), ...zones]),
   ].sort();
   select.replaceChildren(
-    new Option(`${current.replaceAll("_", " ")} (Your Time Zone)`, current),
+    new Option(
+      `${current.replaceAll("_", " ")} ${select.dataset.yourZoneLabel || "(Your Time Zone)"}`,
+      current,
+    ),
   );
   const divider = new Option("──────────", "");
   divider.disabled = true;

@@ -1,6 +1,7 @@
 /** Dashboard view (WP-11): one card per active user. Pure; `now` comes from the caller. */
 import { formatDate, formatDelta, formatMass, formatMetric } from "../analysis/format.ts";
 import type { DashboardSummary } from "../analysis/types.ts";
+import { percent, t } from "../i18n/index.ts";
 import { escapeHtml as e } from "../ui.ts";
 import { badge, buttonLink, delta, emptyState, link, pageHeader, stat, type DeltaData } from "./components.ts";
 import { icon } from "./icons.ts";
@@ -17,20 +18,20 @@ export type DashboardContext = {
 
 function ago(seconds: number): string {
   const s = Math.max(0, seconds);
-  if (s < 90) return "just now";
+  if (s < 90) return t("time.justNow");
   const m = Math.round(s / 60);
-  if (m < 60) return `${m} minutes ago`;
+  if (m < 60) return t("time.minutesAgo", { n: m });
   const h = Math.round(s / 3600);
-  if (h < 48) return `${h} ${h === 1 ? "hour" : "hours"} ago`;
-  return `${Math.floor(s / 86400)} days ago`;
+  if (h < 48) return t("time.hoursAgo", { n: h });
+  return t("time.daysAgo", { n: Math.floor(s / 86400) });
 }
 
 function recency(s: DashboardSummary, zone: string | null): string {
   const d = s.daysSinceLast;
   if (d === null || !s.last) return "";
-  if (d > STALE_DAYS) return badge(`${d} days ago`, "warn");
-  if (d === 0) return badge(zone ? `Today ${formatDate(s.last.t, zone, "time")}` : "Today");
-  return badge(d === 1 ? "Yesterday" : `${d} days ago`);
+  if (d > STALE_DAYS) return badge(t("time.daysAgo", { n: d }), "warn");
+  if (d === 0) return badge(zone ? t("time.todayAt", { time: formatDate(s.last.t, zone, "time") }) : t("time.today"));
+  return badge(d === 1 ? t("time.yesterday") : t("time.daysAgo", { n: d }));
 }
 
 function initials(s: DashboardSummary["user"]): string {
@@ -56,16 +57,18 @@ function hero(s: DashboardSummary): string {
   if (shown === null) return "";
   const sub =
     s.trendKg !== null
-      ? `Trend${s.last?.weightKg != null ? ` · last reading ${formatMass(s.last.weightKg, s.unit, { decimals: 1 })}` : ""}`
-      : "Last reading · not enough data for a trend";
+      ? s.last?.weightKg != null
+        ? t("dash.heroTrendLast", { mass: formatMass(s.last.weightKg, s.unit, { decimals: 1 }) })
+        : t("dash.heroTrend")
+      : t("dash.heroNoTrend");
   return `<data class="stat-value" value="${e(shown)}">${e(formatMass(shown, s.unit, { decimals: 1 }))}</data><p class="user-card-sub">${e(sub)}</p>`;
 }
 
 function progress(s: DashboardSummary): string {
   if (!s.goal || !s.progress) return "";
   const pct = Math.round(Math.min(1, Math.max(0, s.progress.fraction)) * 100);
-  const label = `${pct}% of the way from ${formatMass(s.progress.startKg, s.unit, { decimals: 1 })} to ${formatMass(s.progress.goalKg, s.unit, { decimals: 1 })}`;
-  return `<progress class="progress" max="100" value="${pct}" aria-label="${e(label)}">${pct}%</progress><p class="user-card-sub">${e(label)}</p>`;
+  const label = t("dash.progress", { pct: percent(pct), start: formatMass(s.progress.startKg, s.unit, { decimals: 1 }), goal: formatMass(s.progress.goalKg, s.unit, { decimals: 1 }) });
+  return `<progress class="progress" max="100" value="${pct}" aria-label="${e(label)}">${percent(pct)}</progress><p class="user-card-sub">${e(label)}</p>`;
 }
 
 function chips(s: DashboardSummary): string {
@@ -84,7 +87,7 @@ function chips(s: DashboardSummary): string {
       delta:
         d === null || text === null
           ? undefined
-          : { text, direction: flat ? "flat" : d < 0 ? "down" : "up", ref: "30 d" },
+          : { text, direction: flat ? "flat" : d < 0 ? "down" : "up", ref: t("delta.30d") },
     });
   });
   return `<div class="stat-grid">${items.join("")}</div>`;
@@ -92,8 +95,8 @@ function chips(s: DashboardSummary): string {
 
 function consistency(s: DashboardSummary): string {
   const c = s.consistency;
-  const parts = [`${c.daysLast7} of last 7 days`];
-  if (c.morningShare90 !== null) parts.push(`${Math.round(c.morningShare90 * 100)}% mornings`);
+  const parts = [t("dash.last7", { n: c.daysLast7 })];
+  if (c.morningShare90 !== null) parts.push(t("dash.mornings", { pct: percent(Math.round(c.morningShare90 * 100)) }));
   return parts.join(" · ");
 }
 
@@ -107,15 +110,15 @@ function userCard(s: DashboardSummary, zone: string | null): string {
   if (!s.last) {
     return `<section class="card user-card user-card-empty" aria-label="${e(s.user.name)}"><div class="uc-head">${header}</div><div class="user-card-empty-body">${emptyState({
       icon: "scale",
-      title: "No weigh-ins yet",
-      body: `Step on a scale that knows ${s.user.name}, or import a Withings export`,
-      action: link("/import/withings", "Import a Withings export", { chevron: true }),
+      title: t("dash.noWeighIns"),
+      body: t("dash.noWeighInsBody", { name: s.user.name }),
+      action: link("/import/withings", t("dash.importExport"), { chevron: true }),
     })}</div></section>`;
   }
 
-  const deltas = `<div class="user-card-deltas">${deltaItem(s.deltas.d7, "7 d", s)}${deltaItem(s.deltas.d30, "30 d", s)}${deltaItem(s.deltas.d90, "90 d", s)}</div>`;
+  const deltas = `<div class="user-card-deltas">${deltaItem(s.deltas.d7, t("delta.7d"), s)}${deltaItem(s.deltas.d30, t("delta.30d"), s)}${deltaItem(s.deltas.d90, t("delta.90d"), s)}</div>`;
   const mini = miniTrend({ ...s.mini });
-  const footer = `<div class="card-footer"><span>${e(consistency(s))}</span>${link(href, "Open analysis", { chevron: true })}</div>`;
+  const footer = `<div class="card-footer"><span>${e(consistency(s))}</span>${link(href, t("dash.openAnalysis"), { chevron: true })}</div>`;
   const rows = [header, hero(s), deltas, mini, `<p class="user-card-rate">${e(s.rateText)}</p>`, progress(s), chips(s), footer];
   const cls = ["uc-head", "uc-hero", "uc-deltas", "uc-mini", "uc-rate", "uc-progress", "uc-chips", "uc-foot"];
   return `<section class="card user-card" aria-label="${e(s.user.name)}">${rows.map((r, i) => `<div class="${cls[i]}">${r}</div>`).join("")}</section>`;
@@ -124,18 +127,18 @@ function userCard(s: DashboardSummary, zone: string | null): string {
 export function dashboardView(summaries: DashboardSummary[], ctx: DashboardContext): string {
   const zone = ctx.zone ?? null;
   const day = formatDate(ctx.now, zone ?? "UTC", "long");
-  const sub = ctx.lastWeighIn === null ? `${day} · no weigh-ins yet` : `${day} · last weigh-in ${ago(ctx.now - ctx.lastWeighIn)}`;
+  const sub = ctx.lastWeighIn === null ? t("dash.subtitleNone", { day }) : t("dash.subtitleLast", { day, ago: ago(ctx.now - ctx.lastWeighIn) });
   const header = pageHeader({
-    title: "Today",
+    title: t("dash.title"),
     subtitle: sub,
-    actionsHtml: buttonLink("/readings", "Readings", { variant: "ghost", size: "sm" }),
+    actionsHtml: buttonLink("/readings", t("nav.readings"), { variant: "ghost", size: "sm" }),
   });
   if (!summaries.length) {
     return `${header}${emptyState({
       icon: "scale",
-      title: "Add your first person",
-      body: "Add the people who use the scale, then connect it so their weigh-ins show up here.",
-      action: `${buttonLink("/users", "Add your first person")} ${buttonLink("/firmware", "Connect a scale", { variant: "secondary" })}`,
+      title: t("dash.addFirst"),
+      body: t("dash.addFirstBody"),
+      action: `${buttonLink("/users", t("dash.addFirst"))} ${buttonLink("/firmware", t("dash.connectScale"), { variant: "secondary" })}`,
     })}`;
   }
   return `${header}<div class="user-cards">${summaries.map((s) => userCard(s, zone)).join("")}</div>`;

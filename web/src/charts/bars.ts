@@ -13,6 +13,7 @@ import { attachKeyboard } from "./keyboard.ts";
 import type { Mounted } from "./mount.ts";
 import { baseOption, onThemeChange, prefersReducedMotion, readTheme } from "./theme.ts";
 import type { ChartTheme } from "./theme.ts";
+import { fixed, t as i18n } from "../i18n/index.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Opt = Record<string, any>;
@@ -32,10 +33,7 @@ export function scaleAlpha(color: string, k: number): string {
   return `#${m[1]}${a.toString(16).padStart(2, "0")}`;
 }
 
-export const plain = (v: number, decimals = 1): string =>
-  new Intl.NumberFormat("en-GB", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(
-    Number.isFinite(v) ? v : 0,
-  );
+export const plain = (v: number, decimals = 1): string => fixed(v, decimals);
 
 export function niceAxis(lo: number, hi: number, ticks = 4): { min: number; max: number; step: number; decimals: number } {
   const span = hi - lo > 0 ? hi - lo : 1;
@@ -127,7 +125,7 @@ export function setupChart(el: HTMLElement, spec: ChartSpec): Mounted & { chart:
 
   el.tabIndex = 0;
   el.setAttribute("role", "group");
-  el.setAttribute("aria-label", `${spec.label}. Use the arrow keys to move between values.`);
+  el.setAttribute("aria-label", i18n("chart.ariaLabelPlain", { label: spec.label }));
   const summary = el.closest(".chart-card")?.querySelector<HTMLElement>(".chart-summary");
   if (summary) {
     summary.id ||= `chart-summary-${Math.random().toString(36).slice(2, 8)}`;
@@ -218,16 +216,16 @@ export function mountDivergingBars(el: HTMLElement, points: [number, number][], 
     const [t, v] = points[i];
     const k = kind(v);
     const notes: string[] = [];
-    if (k === "good") notes.push("Moving toward your goal");
-    else if (k === "bad") notes.push("Moving away from your goal");
+    if (k === "good") notes.push(i18n("chart.toGoal"));
+    else if (k === "bad") notes.push(i18n("chart.awayGoal"));
     return {
-      title: `Week of ${formatDate(weekStart(t), "UTC", "medium")}`,
-      rows: [{ swatch: "none", color: "", label: "Trend change", value: formatRate(v, ctx.unit) }],
+      title: i18n("chart.weekOf", { date: formatDate(weekStart(t), "UTC", "medium") }),
+      rows: [{ swatch: "none", color: "", label: i18n("chart.trendChange"), value: formatRate(v, ctx.unit) }],
       notes,
     };
   };
   return setupChart(el, {
-    label: ctx.label ?? "Weekly rate of change",
+    label: ctx.label ?? i18n("chart.rateLabel"),
     className: "chart--bars",
     count: () => points.length,
     tip,
@@ -274,10 +272,10 @@ export function mountEffectBars(el: HTMLElement, items: EffectItem[], ctx: Effec
     return {
       title: it.sub ? `${it.label} · ${it.sub}` : it.label,
       rows: [
-        { swatch: "none", color: "", label: ctx.baseline ?? "Typical difference", value: formatDelta(it.mean, 1, ctx.unit) },
-        { swatch: "none", color: "", label: "95% range", value: `${formatDelta(it.mean - half, 1, ctx.unit)} to ${formatDelta(it.mean + half, 1, ctx.unit)}` },
+        { swatch: "none", color: "", label: ctx.baseline ?? i18n("chart.typicalDiff"), value: formatDelta(it.mean, 1, ctx.unit) },
+        { swatch: "none", color: "", label: i18n("chart.range95"), value: i18n("chart.range", { from: formatDelta(it.mean - half, 1, ctx.unit), to: formatDelta(it.mean + half, 1, ctx.unit) }) },
       ],
-      notes: [`${it.n} ${it.n === 1 ? "reading" : "readings"}`],
+      notes: [i18n("chart.readings", { n: it.n })],
     };
   };
   return setupChart(el, {
@@ -330,7 +328,7 @@ export function mountEffectBars(el: HTMLElement, items: EffectItem[], ctx: Effec
   });
 }
 
-const SLOT_LABEL: Record<TimeOfDayEffect["slot"], string> = { night: "Night", morning: "Morning", midday: "Midday", evening: "Evening" };
+const slotLabel = (slot: TimeOfDayEffect["slot"]): string => i18n(`chart.slot.${slot}`);
 const hh = (h: number) => String(h % 24).padStart(2, "0");
 
 // ---------------------------------------------------------------------------------------------
@@ -344,12 +342,12 @@ export function mountCountBars(el: HTMLElement, counts: number[], ctx: CountCtx 
   const [h0, h1] = ctx.highlight ?? [4, 10];
   const total = counts.reduce((a, b) => a + b, 0);
   const tip = (i: number): Tip => ({
-    title: `${hh(i)}:00 to ${hh(i)}:59`,
-    rows: [{ swatch: "none", color: "", label: "Weigh-ins", value: `${counts[i]}${total ? ` (${Math.round((100 * counts[i]) / total)}%)` : ""}` }],
-    notes: i >= h0 && i < h1 ? [`Inside the morning window (${hh(h0)}:00 to ${hh(h1)}:00)`] : [],
+    title: i18n("chart.hourRange", { h: hh(i) }),
+    rows: [{ swatch: "none", color: "", label: i18n("chart.weighIns"), value: `${counts[i]}${total ? ` (${Math.round((100 * counts[i]) / total)}%)` : ""}` }],
+    notes: i >= h0 && i < h1 ? [i18n("chart.morningWindow", { from: hh(h0), to: hh(h1) })] : [],
   });
   return setupChart(el, {
-    label: ctx.label ?? "Weigh-ins by hour of day",
+    label: ctx.label ?? i18n("chart.hoursLabel"),
     className: "chart--bars",
     count: () => counts.length,
     tip,
@@ -394,14 +392,14 @@ export function mountEffectBarsIsland(el: HTMLElement): Mounted {
     const list = patterns?.weekday;
     if (!list?.length) throw new Error("payload has no patterns.weekday");
     return mountEffectBars(el, list.map((w) => ({ label: w.label, mean: w.mean, se: w.se, n: w.n })), {
-      unit: payload.unit, label: "Weight by weekday, difference from your usual", baseline: "Difference from usual",
+      unit: payload.unit, label: i18n("chart.weekdayLabel"), baseline: i18n("chart.diffUsual"),
     });
   }
   const list = patterns?.timeOfDay;
   if (!list?.length) throw new Error("payload has no patterns.timeOfDay");
   return mountEffectBars(el, list.map((s) => ({
-    label: SLOT_LABEL[s.slot], sub: `${hh(s.hours[0])}:00 to ${hh(s.hours[1])}:00`, mean: s.mean, se: s.se, n: s.n,
-  })), { unit: payload.unit, label: "Weight by time of day, difference from your usual", baseline: "Difference from usual" });
+    label: slotLabel(s.slot), sub: i18n("chart.range", { from: `${hh(s.hours[0])}:00`, to: `${hh(s.hours[1])}:00` }), mean: s.mean, se: s.se, n: s.n,
+  })), { unit: payload.unit, label: i18n("chart.timeOfDayLabel"), baseline: i18n("chart.diffUsual") });
 }
 
 /** <div data-island="count-bars" data-payload="id"> reads payload.habits.hours (24 counts); optional data-from / data-to (morning window hours, default 4 and 10). */

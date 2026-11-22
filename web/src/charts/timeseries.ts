@@ -16,6 +16,7 @@ import { chooseLod, lowerBound, slice } from "./lod.ts";
 import type { Mounted } from "./mount.ts";
 import { baseOption, onThemeChange, prefersReducedMotion, readTheme } from "./theme.ts";
 import type { ChartTheme } from "./theme.ts";
+import { fixed, t as i18n, tag } from "../i18n/index.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Opt = Record<string, any>;
@@ -45,16 +46,12 @@ type NavPoint = {
 };
 
 const DAY = 86400;
-const OUTLIER_TEXT: Record<Outlier["reason"], string> = {
-  implausible: "implausible value",
-  jump: "sudden jump",
-  "robust-z": "unusual value",
-};
+const outlierText = (reason: Outlier["reason"]): string => i18n(`chart.outlier.${reason}`);
 const BMI_BANDS = [
-  { from: -Infinity, to: 18.5, name: "Underweight", color: "bmiUnder" },
-  { from: 18.5, to: 25, name: "Normal", color: "bmiNormal" },
-  { from: 25, to: 30, name: "Overweight", color: "bmiOver" },
-  { from: 30, to: Infinity, name: "Obesity", color: "bmiObese" },
+  { from: -Infinity, to: 18.5, name: "chart.bmi.under", color: "bmiUnder" },
+  { from: 18.5, to: 25, name: "chart.bmi.normal", color: "bmiNormal" },
+  { from: 25, to: 30, name: "chart.bmi.over", color: "bmiOver" },
+  { from: 30, to: Infinity, name: "chart.bmi.obese", color: "bmiObese" },
 ] as const;
 
 const esc = (s: string) =>
@@ -88,7 +85,7 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
   const fmt = (v: number) => formatMetric(v, metric.type, unit, isMass ? { decimals: 1 } : {});
   const plain = (v: number, decimals = 1) => {
     const d = Number.isFinite(v) ? v : 0;
-    return new Intl.NumberFormat("en-GB", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(d);
+    return fixed(d, decimals);
   };
   const bands = ctx.bands ?? (metric.type === -1 ? "bmi" : null);
 
@@ -130,13 +127,13 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
 
   // ---- tooltip content ----
   const longDate = (t: number) => {
-    const parts = new Intl.DateTimeFormat("en-GB", {
+    const parts = new Intl.DateTimeFormat(tag(), {
       weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: safeZone(ctx.zone),
     }).format(new Date(t * 1000));
     return parts.replace(/^(\p{L}+) /u, "$1, ");
   };
   const dayLabel = (day: string) =>
-    new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+    new Intl.DateTimeFormat(tag(), { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
       .format(new Date(`${day}T12:00:00Z`)).replace(/^(\p{L}+) /u, "$1, ");
 
   type Tip = { title: string; rows: { swatch: "dot" | "line" | "none"; color: string; label: string; value: string }[]; notes: string[]; warn: string | null };
@@ -148,29 +145,29 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
     if (p.kind === "bucket" && p.bucket) {
       const b = p.bucket;
       title = b.key.includes("W")
-        ? `Week of ${formatDate(b.start, "UTC", "short")}`
+        ? i18n("chart.weekOf", { date: formatDate(b.start, "UTC", "short") })
         : formatDate(b.t, "UTC", "month");
-      rows.push({ swatch: "dot", color: theme.trend, label: `${metric.label} (mean)`, value: fmt(b.mean) });
-      notes.push(`Range ${fmt(b.min)} to ${fmt(b.max)} · ${b.n} reading${b.n === 1 ? "" : "s"}`);
+      rows.push({ swatch: "dot", color: theme.trend, label: i18n("chart.mean", { label: metric.label }), value: fmt(b.mean) });
+      notes.push(i18n("chart.rangeNote", { min: fmt(b.min), max: fmt(b.max), n: b.n }));
     } else {
       title = p.day && !p.outlier ? dayLabel(p.day) : longDate(p.t);
       if (p.kind === "raw" || p.outlier) title += ` · ${formatDate(p.t, safeZone(ctx.zone), "time")}`;
       rows.push({ swatch: "dot", color: theme.accent, label: metric.label, value: fmt(p.v) });
     }
     const trend = trendAt(metric.trend, p.t);
-    if (trend !== null && !p.outlier) rows.push({ swatch: "line", color: theme.trend, label: "Trend", value: fmt(trend) });
+    if (trend !== null && !p.outlier) rows.push({ swatch: "line", color: theme.trend, label: i18n("chart.trend"), value: fmt(trend) });
     if (p.kind !== "bucket" && !p.outlier) {
       let j = i - 1;
       while (j >= 0 && list[j].outlier) j--;
       if (j >= 0) {
         const gap = p.t - list[j].t;
-        const when = gap < DAY ? `${Math.max(1, Math.round(gap / 3600))} h earlier`
-          : `${Math.round(gap / DAY)} day${Math.round(gap / DAY) === 1 ? "" : "s"} earlier`;
-        rows.push({ swatch: "none", color: "", label: "Δ previous", value: `${formatDelta(p.v - list[j].v, metric.type, unit)} (${when})` });
+        const when = gap < DAY ? i18n("chart.hoursEarlier", { n: Math.max(1, Math.round(gap / 3600)) })
+          : i18n("chart.daysEarlier", { n: Math.round(gap / DAY) });
+        rows.push({ swatch: "none", color: "", label: i18n("chart.deltaPrevious"), value: `${formatDelta(p.v - list[j].v, metric.type, unit)} (${when})` });
       }
-      if (trend !== null) rows.push({ swatch: "none", color: "", label: "Δ from trend", value: formatDelta(p.v - trend, metric.type, unit) });
+      if (trend !== null) rows.push({ swatch: "none", color: "", label: i18n("chart.deltaTrend"), value: formatDelta(p.v - trend, metric.type, unit) });
     }
-    return { title, rows, notes, warn: p.outlier ? `⚠ Left out of trend (${OUTLIER_TEXT[p.outlier]})` : null };
+    return { title, rows, notes, warn: p.outlier ? i18n("chart.outlierNote", { reason: outlierText(p.outlier) }) : null };
   };
   const tipHtml = (t: Tip) =>
     `<div class="tt"><div class="tt-title">${esc(t.title)}</div>` +
@@ -318,7 +315,7 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
       marks.markLine = {
         silent: true, symbol: "none", animation: false,
         lineStyle: { color: theme.goal, width: 1.5, type: [6, 4] },
-        label: { show: true, position: "insideStartTop", formatter: `Goal ${plain(disp(goalKg))}`, color: theme.goal, fontSize: 12 },
+        label: { show: true, position: "insideStartTop", formatter: i18n("chart.goal", { value: plain(disp(goalKg)) }), color: theme.goal, fontSize: 12 },
         data: [{ yAxis: disp(goalKg) }],
       };
     }
@@ -327,7 +324,7 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
         silent: true, animation: false,
         data: BMI_BANDS.filter((band) => band.to > lo && band.from < hi).map((band) => [
           {
-            yAxis: Math.max(lo, band.from), name: band.name, itemStyle: { color: theme[band.color] },
+            yAxis: Math.max(lo, band.from), name: i18n(band.name), itemStyle: { color: theme[band.color] },
             label: { show: true, position: "insideBottomLeft", color: theme.textSubtle, fontSize: 12 },
           },
           { yAxis: Math.min(hi, band.to) },
@@ -399,7 +396,7 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
   let cursorT: number | null = null;
   el.tabIndex = 0;
   el.setAttribute("role", "group");
-  el.setAttribute("aria-label", `${metric.label} chart. Use the arrow keys to move between values.`);
+  el.setAttribute("aria-label", i18n("chart.ariaLabel", { label: metric.label }));
   const summary = el.closest(".chart-card")?.querySelector<HTMLElement>(".chart-summary");
   if (summary) {
     summary.id ||= `chart-summary-${Math.random().toString(36).slice(2, 8)}`;
@@ -455,7 +452,7 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
       resetBtn = document.createElement("button");
       resetBtn.type = "button";
       resetBtn.className = "btn btn-ghost btn-sm";
-      resetBtn.textContent = "Reset zoom";
+      resetBtn.textContent = i18n("chart.resetZoom");
       resetBtn.hidden = true;
       resetBtn.addEventListener("click", reset);
       if (tools) tools.append(resetBtn);
@@ -518,7 +515,7 @@ export function mountTimeSeries(el: HTMLElement, metric: MetricAnalysis, ctx: Ti
 
 function safeZone(zone: string): string {
   try {
-    new Intl.DateTimeFormat("en-GB", { timeZone: zone });
+    new Intl.DateTimeFormat(tag(), { timeZone: zone });
     return zone;
   } catch {
     return "UTC";

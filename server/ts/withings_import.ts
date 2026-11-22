@@ -2,6 +2,7 @@
  * Parsing is pure; staging and committing use the same temporary table as
  * backup imports so the review step needs no new migration.
  */
+import { t } from "./i18n/index.ts";
 import { readZip } from "./zip.ts";
 import { metricValue, validateMetricJson, type Measure } from "./metrics.ts";
 
@@ -159,8 +160,8 @@ export function suggestUser(
   const token = fold(/^data_(.+)_\d+\.zip$/i.exec(fileName)?.[1] ?? "");
   const first = fold(firstname);
   for (const [want, reason] of [
-    [first, "first name in the export"],
-    [token, "name in the file name"],
+    [first, t("import.reasonFirst")],
+    [token, t("import.reasonFile")],
   ] as const) {
     if (!want) continue;
     const hit = users.find(

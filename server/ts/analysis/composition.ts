@@ -1,4 +1,5 @@
 /** Body composition, recomposition and BMI (WP-06). Pure. */
+import { decimal, percent, t } from "../i18n/index.ts";
 import { mean } from "./stats.ts";
 import { dayNoonUtc, localTime } from "./time.ts";
 import type { BmiCategory, DayPoint, Reading, Recomposition } from "./types.ts";
@@ -19,9 +20,7 @@ export function deriveComposition(readings: Reading[]): Reading[] {
   });
 }
 
-const NOTE =
-  "Bathroom-scale body composition (bioimpedance) shifts with hydration; trust multi-week trends, not single days.";
-const kg = (v: number) => Math.abs(v).toFixed(1);
+const kg = (v: number) => decimal(Math.abs(v), 1);
 
 /** deltas are 14-day means at the end of the range minus those at its start. */
 export function recomposition(
@@ -32,32 +31,30 @@ export function recomposition(
 ): Recomposition {
   const make = (
     kind: Recomposition["kind"], fatShare: number | null, text: string,
-  ): Recomposition => ({ kind, dWeight, dFat, dLean, fatShare, text: `${text} ${NOTE}` });
+  ): Recomposition => ({ kind, dWeight, dFat, dLean, fatShare, text: `${text} ${t("an.comp.note")}` });
   if (dWeight === null || dFat === null || dLean === null || rangeDays < 42)
-    return make("insufficient", null, "Not enough body composition readings in this period to say what changed.");
+    return make("insufficient", null, t("an.comp.insufficient"));
   const clamp = (x: number) => Math.min(1, Math.max(0, x));
   if (Math.abs(dWeight) < 1 && dFat <= -0.7 && dLean >= 0.5)
-    return make("recomposition", null,
-      `Your weight held steady while fat mass fell ${kg(dFat)} kg and lean mass rose ${kg(dLean)} kg.`);
+    return make("recomposition", null, t("an.comp.recomposition", { fat: kg(dFat), lean: kg(dLean) }));
   if (dWeight <= -1) {
     const share = clamp(dFat / dWeight);
-    const pct = Math.round(share * 100);
+    const pct = percent(Math.round(share * 100));
     if (share >= 0.6)
-      return make("fat-loss", share, `About ${pct}% of the ${kg(dWeight)} kg you lost was fat.`);
-    return make("mixed-loss", share,
-      `Of the ${kg(dWeight)} kg lost, about ${pct}% was fat; the rest came from lean mass (water, glycogen, muscle).`);
+      return make("fat-loss", share, t("an.comp.fatLoss", { pct, kg: kg(dWeight) }));
+    return make("mixed-loss", share, t("an.comp.mixedLoss", { kg: kg(dWeight), pct }));
   }
   if (dWeight >= 1) {
     if (dLean / dWeight >= 0.6)
       return make("lean-gain", clamp(dFat / dWeight),
-        `About ${Math.round(clamp(dLean / dWeight) * 100)}% of the ${kg(dWeight)} kg you gained was lean mass.`);
+        t("an.comp.leanGain", { pct: percent(Math.round(clamp(dLean / dWeight) * 100)), kg: kg(dWeight) }));
     if (dFat / dWeight >= 0.6)
       return make("fat-gain", clamp(dFat / dWeight),
-        `About ${Math.round(clamp(dFat / dWeight) * 100)}% of the ${kg(dWeight)} kg you gained was fat.`);
+        t("an.comp.fatGain", { pct: percent(Math.round(clamp(dFat / dWeight) * 100)), kg: kg(dWeight) }));
   }
   if (Math.abs(dWeight) < 1 && Math.abs(dFat) < 0.7 && Math.abs(dLean) < 0.7)
-    return make("stable", null, "Your weight and body composition stayed about the same.");
-  return make("unclear", null, "Weight and body composition changed, but not in a clear pattern.");
+    return make("stable", null, t("an.comp.stable"));
+  return make("unclear", null, t("an.comp.unclear"));
 }
 
 /** Monthly means; otherLean = lean − muscle − bone (null when missing or negative). */
