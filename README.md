@@ -1,7 +1,7 @@
 <img src="docs/yow.png" alt="YOW logo" width="100" />
 
 # YourOpenScale (YOS)
-> Based on [YourOwnWeigh](https://github.com/TomAnthony/YourOwnWeigh) by Tom Anthony (MIT).
+> A fork of [YourOwnWeigh](https://github.com/TomAnthony/YourOwnWeigh) by Tom Anthony (MIT). The scale firmware patches, the Python bridge and the original server are his work; this fork builds on them. See [What this fork adds](#what-this-fork-adds).
 
 ### _Free Wi-Fi Syncing for Withings Scales_
 
@@ -9,11 +9,32 @@ This project provides the components needed to have your Withings scales sync it
 
 It is designed to allow you to ensure your hardware is able to work how you want, without subscription fees. You can sync to Apple Health, Google Health or anywhere you want.
 
-If you want to know more about why, see this [blog post](https://www.tomanthony.co.uk/blog/withings-yow-free-wifi-sync/), otherwise there are quick start guides below - including how to host this all on a free CloudFlare account.
+If you want to know more about why, see the upstream author's [blog post](https://www.tomanthony.co.uk/blog/withings-yow-free-wifi-sync/), otherwise there are quick start guides below.
 
-_This was released in October 2026, and whilst it has been used across various models of scales by various users, I cannot make any guarantees._
+_The upstream project was released in October 2026 and has been used across various models of scales by various users, but there are no guarantees. Passages below written in the first person (FAQ, motivation) come from the upstream README by Tom Anthony._
 
-**If you are interested in helping as a maintainer, please email me at yow@&lt;domain-of-blog-post&gt;.** 
+Issues and pull requests are welcome in this repository. Support for new scale models and firmware work is best discussed with the [upstream project](https://github.com/TomAnthony/YourOwnWeigh) as well.
+
+<img src="docs/screenshot-dashboard.png" alt="YourOpenScale dashboard with three people (demo data)" width="1024">
+
+## What this fork adds
+
+- **Redesigned web UI** with light and dark themes, a grouped navigation, and an installable PWA (offline page only; pages and readings are never cached).
+- **Charts and analysis** per person: trend weight (smoothed), rate of change, weekly rhythm, records, data-quality checks, BMI and body composition where the scale measures it.
+- **Goals with a start date and start weight**, progress since the start, and a **goal projection** that does not simply extend a straight line (see [below](#goal-projection)).
+- **English and German** interface, plus selectable date and time formats.
+- **Import of Withings data exports.**
+- **Docker self-hosting** behind your own reverse proxy, with a [one-command deploy script](docker/FORK-DEPLOY.md) (tests, database backup, health check, smoke check, automatic rollback).
+
+<img src="docs/screenshot-overview.png" alt="Per-person overview with trend, rate, BMI and goal projection (demo data)" width="1024">
+
+### Goal projection
+
+Losing weight is not linear: the first kilos come off faster, and it gets slower closer to a healthy weight, with lower body fat, and with age. The projected date takes this into account:
+
+1. If your own history since the goal start already shows a flattening curve (fitted as an exponential approach, accepted only when it clearly beats a straight line), that curve is used and the date range comes from the fit's uncertainty.
+2. Otherwise, for weight loss, the pace is assumed to ease off in proportion to what is left above a floor weight. The floor is the weight at a BMI of 21 (rising slightly with age) or, when body fat is measured, the weight at which your lean mass would carry the minimum body-fat share, whichever is higher. These numbers are rule-of-thumb assumptions, not medical advice; they are constants at the top of [`server/ts/analysis/trend.ts`](server/ts/analysis/trend.ts).
+3. The straight-line date at your current rate is shown as the earliest estimate. If the curve settles above your goal, the page says so instead of giving a date.
 
 ## YOW Components
 
@@ -28,8 +49,6 @@ This repo provides several components:
 - shortcuts/scripts that help you automatically sync this data (e.g. into Apple Health)
 
 You can easily import your devices, and registered scale user roster into YOW, so you can continue right where you left off.
-
-<img src="docs/screenshot.png" alt="YourOpenScale Dashboard Screenshot" width="1024">
 
 ## Supported Models
 
@@ -55,6 +74,8 @@ On Windows the Python bridge currently only suports Bluetooth LE scales, as the 
 Thanks to [mbragagnolo](https://github.com/mbragagnolo/) for the Windows port!
 
 ## Quick Start Using Cloudflare
+
+_This quick start is inherited from upstream. The author of this fork runs the server with Docker (below), so the Cloudflare path is less exercised here._
 
 Using a free CloudFlare account, you can set this up end to end in a durable fashion.
 
@@ -185,6 +206,10 @@ There are a few other community projects that relate to this
 - [withings-local](https://github.com/pierosavi/withings-local) - supports syncing Withings scales to Homekit over Bluetooth. Doesn't require updating the firmware.
 - [esphome-withings-wpp](https://github.com/NavistAuLabs/esphome-withings-wpp) - allows syncing Withings scales via an ESPHome sensor. Doesn't require updating the firmware.
 - [openScale](https://github.com/oliexdev/openScale) - Open-source weight and body metrics tracker, with support for Bluetooth scales, but no Withings support currently.
+
+## License
+
+MIT. Copyright (c) 2026 Uwe Schüssler and YourOpenScale contributors, and (c) 2026 Tom Anthony and YourOwnWeigh contributors; see [LICENSE](LICENSE) and [`bridge/LICENSE`](bridge/LICENSE). Bundled third-party software is listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## Legal
 

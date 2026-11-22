@@ -6,7 +6,11 @@ All notable changes to YourOpenScale are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- README rewritten for this fork (what it adds, goal projection, screenshots with demo data, license section). Deploy settings now live in the git-ignored `tools/deploy.local.env`.
+
 ### Added
+- `THIRD-PARTY-NOTICES.md` with the licenses of bundled software.
 - `tools/deploy.sh`: one-command deploy with tests, DB backup, healthcheck wait, smoke check, automatic rollback and pruning, plus `rollback` and `status`.
 - Container healthcheck in the Dockerfile.
 

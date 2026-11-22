@@ -10,23 +10,29 @@
 # `docker compose up -d`, wait for the container, smoke-check the public URL, prune old
 # images/backups. Any failure after the switch rolls back to the previous tag automatically.
 #
-# Settings (environment variables, defaults for the current setup):
-#   DEPLOY_HOST   ssh host                          (alfred)
-#   DEPLOY_DIR    compose directory on the host     (docker/yow, relative to the ssh home)
-#   PUBLIC_URL    public origin for the smoke check (https://waage.schuessler.cloud)
-#   KEEP_IMAGES   image tags to keep                (3)
-#   KEEP_BACKUPS  DB backups to keep                (5)
+# Settings come from the environment or from tools/deploy.local.env (git-ignored, see
+# tools/deploy.local.env.example):
+#   DEPLOY_HOST   ssh host that runs the container            (required)
+#   DEPLOY_DIR    compose directory on that host (relative to the ssh home) (required)
+#   PUBLIC_URL    public origin for the smoke check           (required)
+#   KEEP_IMAGES   image tags to keep                          (3)
+#   KEEP_BACKUPS  DB backups to keep                          (5)
 set -euo pipefail
 
-HOST="${DEPLOY_HOST:-alfred}"
-DIR="${DEPLOY_DIR:-docker/yow}"
-URL="${PUBLIC_URL:-https://waage.schuessler.cloud}"
+cd "$(dirname "$0")/.."
+# shellcheck disable=SC1091
+[ -f tools/deploy.local.env ] && . tools/deploy.local.env
+
+: "${DEPLOY_HOST:?set DEPLOY_HOST (ssh host), e.g. in tools/deploy.local.env}"
+: "${DEPLOY_DIR:?set DEPLOY_DIR (compose directory on the host)}"
+: "${PUBLIC_URL:?set PUBLIC_URL (public https origin)}"
+HOST="$DEPLOY_HOST"
+DIR="$DEPLOY_DIR"
+URL="${PUBLIC_URL%/}"
 KEEP_IMAGES="${KEEP_IMAGES:-3}"
 KEEP_BACKUPS="${KEEP_BACKUPS:-5}"
 CONTAINER="yourownweigh"
 IMAGE="yos-local"
-
-cd "$(dirname "$0")/.."
 
 cmd="deploy"
 skip_tests=0
@@ -36,7 +42,7 @@ for arg in "$@"; do
     deploy | rollback | status) cmd="$arg" ;;
     --skip-tests) skip_tests=1 ;;
     --dry-run) dry=1 ;;
-    -h | --help) sed -n '2,19p' "$0"; exit 0 ;;
+    -h | --help) sed -n '2,21p' "$0"; exit 0 ;;
     *) echo "unknown argument: $arg" >&2; exit 2 ;;
   esac
 done

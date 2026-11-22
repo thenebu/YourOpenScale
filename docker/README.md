@@ -34,10 +34,10 @@ docker compose up -d
 
 The container runs as the unprivileged `node` user (uid 1000), so the
 bind-mounted `data/` must be writable by that uid — hence the `chown` above
-(migrating an older root-owned `data/`? run the same chown once). The image
-(`ghcr.io/tomanthony/yourownweigh`) is built by the repo's CI; to run your own
-build instead, uncomment `build:` in the compose and start with
-`docker compose up -d --build`.
+(migrating an older root-owned `data/`? run the same chown once). The upstream
+image (`ghcr.io/tomanthony/yourownweigh`) does not contain this fork's changes. Build
+your own: uncomment `build:` in the compose and start with
+`docker compose up -d --build`, or use `tools/deploy.sh` ([FORK-DEPLOY.md](FORK-DEPLOY.md)).
 
 Read the first-run bootstrap token with `docker logs yourownweigh`, open your
 dashboard URL and set an admin password. To migrate an instance, drop its DB in

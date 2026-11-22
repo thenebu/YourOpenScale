@@ -18,9 +18,11 @@ not become healthy or the smoke check fails it rolls back by itself. It keeps th
 images and 5 DB backups. The version shown in the footer comes from `package.json`, so bump
 it (see CONTRIBUTING.md) before deploying a user-visible change.
 
-Defaults match the current host and can be overridden with environment variables:
-`DEPLOY_HOST` (`alfred`), `DEPLOY_DIR` (`docker/yow`, relative to the ssh home),
-`PUBLIC_URL` (`https://waage.schuessler.cloud`), `KEEP_IMAGES`, `KEEP_BACKUPS`.
+Configure it once: copy `tools/deploy.local.env.example` to `tools/deploy.local.env`
+(git-ignored) and set `DEPLOY_HOST` (ssh host), `DEPLOY_DIR` (directory with
+`docker-compose.yml`, relative to the ssh home) and `PUBLIC_URL`. The same variables work
+from the environment, and `KEEP_IMAGES` / `KEEP_BACKUPS` tune the pruning. The compose file
+must reference the image as `image: yos-local:<tag>`.
 
 The notes below are the manual steps the script automates (UI overhaul era), kept for
 reference and for a fresh host.
@@ -54,7 +56,7 @@ keys `goal:<id>`, which older versions ignore.
 ## Deploy
 
 Set `image: yos-local:ui-<date>` in the compose file and run `docker compose up -d`.
-Add the `compress` middleware to the Traefik router for `waage.schuessler.cloud`
+Add the `compress` middleware to the Traefik router for `scale.example.com`
 (gzip for HTML, JSON, JS and CSS), for example:
 
 ```yaml
@@ -71,7 +73,7 @@ labels:
 - `/` loads.
 - `/users/<id>/overview?range=all` loads.
 - `/firmware` works ("Generate Connection Invitation" responds).
-- `curl -I https://waage.schuessler.cloud/assets/<file>` returns 200 with
+- `curl -I https://scale.example.com/assets/<file>` returns 200 with
   `cache-control: public, max-age=31536000, immutable` (take the file name from
   the page source, e.g. `app-*.css`).
 
@@ -84,7 +86,7 @@ Install app; on iOS Safari use Share, then Add to Home Screen. The service worke
 pages and API responses are never cached. After a deploy the new worker takes
 over on the next reload: an "Update available" toast offers Reload, otherwise it
 activates once all old tabs are closed. Smoke check:
-`curl -sI https://waage.schuessler.cloud/sw.js` returns 200 with `cache-control: no-cache`
+`curl -sI https://scale.example.com/sw.js` returns 200 with `cache-control: no-cache`
 (no login needed for `/sw.js`, `/manifest.webmanifest`, `/offline`, `/icons/*`).
 
 ## Rollback

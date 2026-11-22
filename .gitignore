@@ -59,6 +59,9 @@ xcuserdata/
 
 # Other
 tom-notes.md
+/tools/deploy.local.env
+# Private planning notes
+/docs/plan-multiuser-oidc.md
 
 # Generated deployment assets and Python packaging.
 /server/static/*.shortcut
