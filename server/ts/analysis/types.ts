@@ -30,7 +30,7 @@ export type Projection = {
   etaDays: number | null; date: string | null; earliest: string | null; latest: string | null;
   requiredPerWeek: number | null;   // only when the goal has a target date
 };
-export type Goal = { kg: number; date: string | null; startKg: number; startAt: number };
+export type Goal = { kg: number; date: string | null; startKg: number; startAt: number; startManual?: boolean };
 export type GoalProgress = { fraction: number; startKg: number; currentKg: number; goalKg: number };
 export type Outlier = { readingId: number; t: number; v: number; reason: "implausible" | "jump" | "robust-z" };
 export type MetricSpec = { type: number; key: string; label: string; unit: string;

@@ -146,6 +146,26 @@ test("goal form saves and the goal line appears", async ({ page }, info) => {
   await expect(page.locator("#goal .goal-target")).toHaveCount(0);
 });
 
+test("goal start date in the past gives progress on the dashboard", async ({ page }, info) => {
+  test.skip(info.project.name !== "light", "mutates shared state; run once");
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+  await page.goto(OVERVIEW);
+  const edit = page.locator("#goal details.goal-edit");
+  if (!(await edit.evaluate((d: HTMLDetailsElement) => d.open))) await page.locator("#goal summary").click();
+  // Prefilled with the stored start day; the hint shows the start weight derived from the trend.
+  await expect(page.getByLabel("Start date")).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+  await page.getByLabel("Start date").fill(daysAgo(895));
+  await page.getByLabel(/Start weight/).fill("");
+  await page.getByRole("button", { name: "Save goal" }).click();
+  await expect(page.locator("#goal .goal-progress-text")).toContainText("since");
+  await page.locator("#goal summary").click();
+  await expect(page.locator(".goal-start-hint")).toContainText("Start weight from your trend on");
+  await page.goto("/");
+  const bar = page.locator(".user-card", { hasText: "Alex" }).locator("progress.progress");
+  await expect(bar).toBeVisible();
+  expect(Number(await bar.getAttribute("value"))).toBeGreaterThan(0);
+});
+
 test("section nav jumps land below the sticky controls", async ({ page }) => {
   for (const vp of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(vp);

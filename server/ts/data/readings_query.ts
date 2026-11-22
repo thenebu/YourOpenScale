@@ -78,7 +78,7 @@ export async function loadGoal(db: D1Database, userId: number): Promise<Goal | n
     const num = (v: unknown) => typeof v === "number" && Number.isFinite(v);
     if (!g || !num(g.kg) || !num(g.startKg) || !num(g.startAt)) return null;
     if (g.date !== null && typeof g.date !== "string") return null;
-    return { kg: g.kg, date: g.date ?? null, startKg: g.startKg, startAt: g.startAt };
+    return { kg: g.kg, date: g.date ?? null, startKg: g.startKg, startAt: g.startAt, ...(g.startManual === true ? { startManual: true } : {}) };
   } catch {
     return null;
   }
@@ -90,7 +90,10 @@ export async function saveGoal(db: D1Database, userId: number, goal: Goal | null
     await db.prepare("DELETE FROM settings WHERE key=?").bind(goalKey(userId)).run();
     return;
   }
-  const value = JSON.stringify({ kg: goal.kg, date: goal.date, startKg: goal.startKg, startAt: goal.startAt });
+  const value = JSON.stringify({
+    kg: goal.kg, date: goal.date, startKg: goal.startKg, startAt: goal.startAt,
+    ...(goal.startManual ? { startManual: true } : {}),
+  });
   await db
     .prepare("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
     .bind(goalKey(userId), value)

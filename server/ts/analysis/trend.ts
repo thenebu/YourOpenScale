@@ -125,6 +125,7 @@ export function projectGoal(
 
 export function goalProgress(trendNow: number | null, goal: Goal): GoalProgress | null {
   if (trendNow === null) return null;
+  // Works for loss (goal < start) and gain (goal > start) goals alike: the signs cancel.
   const denom = goal.startKg - goal.kg;
   const raw = denom === 0 ? 1 : (goal.startKg - trendNow) / denom;
   return {

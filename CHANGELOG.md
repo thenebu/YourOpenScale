@@ -7,6 +7,7 @@ All notable changes to YourOpenScale are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Goal start date and start weight. The goal form has a start date (default: today or the stored one) and an optional start weight; left empty, the start weight is taken from your trend on that day (fallback: nearest weigh-in, then your reference weight). Progress is measured from there and shown as "since <date>" on the dashboard and overview.
 - German interface (informal "du") next to English. The language follows the `yos_lang` cookie, then the browser's Accept-Language, then English. An EN | DE switch sits in the footer (also on the sign-in and setup pages) and in Settings. Numbers, dates, chart tooltips, analysis sentences, flash messages and the offline page follow the language; CSV exports stay machine-readable.
 - Dev server forwards the language and theme cookies so the e2e suite can exercise both languages.
 
