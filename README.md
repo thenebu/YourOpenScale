@@ -1,4 +1,4 @@
-<img src="docs/yow.png" alt="YOW logo" width="100" />
+<img src="docs/logo.png" alt="YourOpenScale logo" width="100" />
 
 # YourOpenScale (YOS)
 > A fork of [YourOwnWeigh](https://github.com/TomAnthony/YourOwnWeigh) by Tom Anthony (MIT). The scale firmware patches, the Python bridge and the original server are his work; this fork builds on them. Its changes were developed largely with the AI assistant Claude ([details](#how-this-fork-was-made)). See [Direction](#direction-your-data-your-server-your-analysis) and [What this fork adds](#what-this-fork-adds).
