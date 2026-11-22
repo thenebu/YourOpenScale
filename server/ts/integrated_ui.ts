@@ -2,6 +2,8 @@
 import { SCALE_MODELS, scaleModel } from "./models.ts";
 import { escapeHtml as e, hidden, timeLabel } from "./ui.ts";
 import { WEB_APP_VERSION } from "./version.ts";
+import { icon } from "./views/icons.ts";
+import { buttonLink, kv, pageHeader, raw } from "./views/components.ts";
 type Row = Record<string, any>;
 
 export function timeZoneSelect(name: string, value = "", id = ""): string {
@@ -9,7 +11,7 @@ export function timeZoneSelect(name: string, value = "", id = ""): string {
 }
 
 export function firmwareWorkspace(csrf: string): string {
-  return `<div id="firmware-workspace" data-csrf="${e(csrf)}" data-local-roster-models="${Object.keys(SCALE_MODELS).filter((model) => SCALE_MODELS[model].localRoster).join(",")}"><section class="bridge-heading"><h1>Firmware Bridge</h1><div id="bridge-connection" class="bridge-status is-offline"><span class="status-dot" aria-hidden="true"></span><span id="bridge-status-text" role="status">Python Bridge Not Connected</span><button type="button" id="revoke-bridge" class="text-button" title="Disconnect from this server. An active firmware transfer continues locally." hidden>Disconnect Bridge</button></div></section>
+  return `<div id="firmware-workspace" data-csrf="${e(csrf)}" data-local-roster-models="${Object.keys(SCALE_MODELS).filter((model) => SCALE_MODELS[model].localRoster).join(",")}">${pageHeader({ title: "Firmware bridge", subtitle: "Connect a scale over Bluetooth and install YourOwnWeigh firmware", actionsHtml: '<div id="bridge-connection" class="bridge-status is-offline"><span class="status-dot" aria-hidden="true"></span><span id="bridge-status-text" role="status">Python Bridge Not Connected</span><button type="button" id="revoke-bridge" class="text-button" title="Disconnect from this server. An active firmware transfer continues locally." hidden>Disconnect Bridge</button></div>' })}
     <section id="bridge-offline"><h2>Connect The Python Bridge</h2>
       <p>Run the bridge on your Mac or Linux computer and leave it running while setting up a scale.</p>
       <ol><li>Install: <code>python3.11 -m venv .venv &amp;&amp; .venv/bin/pip install ./bridge</code></li>
@@ -88,54 +90,60 @@ export function scalesWorkspace(
   csrf: string,
   users: Row[] = [],
 ): string {
-  return `<section class="page-heading"><h1>Scales</h1></section>
+  return `${pageHeader({ title: "Scales", subtitle: "Devices that send readings to this server" })}
     <div class="scale-cards">${
       scales.length
         ? scales
             .map(
               (
                 s,
-              ) => `<section class="scale-card" id="scale-${e(s.id)}"><div class="section-heading"><h2>${e(s.label)}</h2><span class="badge${!scaleModel(s.model)?.classicGates && !s.settings_ready ? " warn" : ""}">${scaleModel(s.model)?.classicGates || s.settings_ready ? "Ready" : scaleModel(s.model)?.localRoster ? "Choose Users" : "Import Incomplete"}</span></div>
+              ) => `<section class="card scale-card" id="scale-${e(s.id)}"><div class="card-header"><h2 class="card-title">${e(s.label)}</h2><span class="scale-status ${!scaleModel(s.model)?.classicGates && !s.settings_ready ? "is-warn" : "is-ready"} card-actions">${icon(!scaleModel(s.model)?.classicGates && !s.settings_ready ? "alert-triangle" : "check", { size: 14 })}<span class="badge">${scaleModel(s.model)?.classicGates || s.settings_ready ? "Ready" : scaleModel(s.model)?.localRoster ? "Choose Users" : "Import Incomplete"}</span></span></div>
       <table class="scale-details"><tbody><tr><th>Model</th><td>${scaleModel(s.model)?.fullLabel ?? s.model}</td></tr><tr><th>MAC</th><td><code>${e(
         String(s.mac)
           .replace(/(..)(?=.)/g, "$1:")
           .toUpperCase(),
-      )}</code></td></tr>${firmwareRow(s)}<tr><th>Secret</th><td><button class="secret-reveal" type="button" data-reveal-secret="scale-secret-${e(s.id)}" aria-expanded="false">•••••••••••••••• <span class="hint">(Click To Reveal)</span></button><code id="scale-secret-${e(s.id)}" hidden>${e(s.secret)}</code></td></tr></tbody></table>
-      <button type="button" class="text-button" data-open-dialog="edit-device-${e(s.id)}">Edit Settings</button></section>`,
+      )}</code></td></tr>${firmwareRow(s)}<tr><th>Secret</th><td><button class="secret-reveal btn btn-ghost btn-sm" type="button" data-reveal-secret="scale-secret-${e(s.id)}" aria-expanded="false">Reveal</button><code id="scale-secret-${e(s.id)}" hidden>${e(s.secret)}</code></td></tr></tbody></table>
+      <div class="card-footer"><button type="button" class="btn btn-secondary btn-sm" data-open-dialog="edit-device-${e(s.id)}">Edit Settings</button></div></section>`,
             )
             .join("")
-        : '<section><p class="empty">No scales yet.</p><a class="button" href="/firmware">Connect A Scale</a></section>'
+        : '<section class="card empty-state"><p class="empty-title">No scales yet</p>${buttonLink("/firmware", "Connect a scale")}</section>'
     }</div>
     ${scales.map((s) => editDevice(s, csrf, users)).join("")}
-    <div class="page-footer"><button class="text-button" type="button" data-open-dialog="device-file-dialog">Import Device File</button></div>
+    <div class="page-footer"><button class="btn btn-ghost" type="button" data-open-dialog="device-file-dialog">Import Device File</button></div>
     <dialog id="device-file-dialog"><button class="dialog-close" data-close-dialog type="button">×</button><h2>Import Device File</h2><form action="/scales/import-ble" method="post" enctype="multipart/form-data">${hidden(csrf)}<label>Name (Optional)<input name="label" maxlength="80"></label><label>Device Export<input type="file" name="record" accept=".json" required></label><label>Time Zone${timeZoneSelect("time_zone")}</label><button>Import Device</button></form></dialog>`;
 }
+const copyButton = (value: string, label: string, target = ""): string =>
+  `<button type="button" class="btn btn-ghost btn-icon btn-sm" ${target ? `data-copy-target="${e(target)}"` : `data-copy="${e(value)}"`} aria-label="${e(label)}">${icon("copy", { size: 16 })}</button>`;
+const copyValue = (text: string, label: string): string =>
+  `<span class="copy-value"><code>${e(text)}</code>${copyButton(text, label)}</span>`;
 export function syncPage(origin: string, users: Row[]): string {
-  return `<section class="page-heading"><h1>Sync</h1></section>
-    <div class="firmware-grid"><section><h2>Apple Health</h2><p>Download the static signed Shortcut, then set its first three Text actions. You can install and configure it on your Mac; iCloud syncs it to Shortcuts on your iPhone. Run it on the iPhone to grant Health access.</p>
-    <a class="button" href="/YourOwnWeigh-Sync.shortcut" download="YourOwnWeigh Sync.shortcut">Download YourOwnWeigh Sync</a><dl><dt>Server URL</dt><dd><code>${e(origin)}</code></dd><dt>User ID Or Three-Letter Name</dt><dd>${users.map((u) => `${e(u.name)}: <code>${e(u.id)}</code> / <code>${e(u.short_name)}</code>`).join("<br>") || "Add a user first."}</dd><dt>Password</dt><dd>Your Sync API password (the admin password unless you set a separate one).</dd></dl>
-    <p class="hint">For a daily sync, create a Personal Automation in iPhone Shortcuts: Time Of Day → 09:00 → Daily → Run Immediately → Run Shortcut → YourOwnWeigh Sync. Run the Shortcut manually any time too.</p></section>
-    <section><h2>Read Over HTTP</h2><p>Use a numeric user ID or an unambiguous three-letter display name. Requests return JSON and do not mark readings as imported into Apple Health.</p><pre>curl --user reader \\\n  '${e(origin)}/api/users/USER/readings?since=2026-01-01'</pre><p class="hint">curl prompts for the password. Use HTTPS for remote servers. The household credential can read every user; the selected ID controls this request, not access rights.</p><p><code>/readings</code> returns all measurement groups, named metrics and raw values. Follow <code>next_cursor</code> using the <code>cursor</code> parameter to paginate. <code>/weights</code> remains available for weight-only clients.</p><p>The Apple Shortcut uses the separate <code>health-sync/next</code> and <code>health-sync/ack</code> endpoints so it acknowledges a reading only after writing it to Health.</p></section></div>`;
+  const curl = `curl --user reader \\\n  '${origin}/api/users/USER/readings?since=2026-01-01'`;
+  const ids = users.length
+    ? raw(users.map((u) => `<span class="copy-row"><span>${e(u.name)}</span>${copyValue(String(u.id), `Copy ID of ${u.name}`)}<span class="muted">or</span>${copyValue(String(u.short_name), `Copy short name of ${u.name}`)}</span>`).join(""))
+    : "Add a user first.";
+  return `${pageHeader({ title: "Sync", subtitle: "Send readings to Apple Health or read them over HTTP" })}
+    <div class="card-grid"><section class="card"><div class="card-header"><h2 class="card-title">Apple Health</h2></div><p>Download the static signed Shortcut, then set its first three Text actions. You can install and configure it on your Mac; iCloud syncs it to Shortcuts on your iPhone. Run it on the iPhone to grant Health access.</p>
+    <p>${buttonLink("/YourOwnWeigh-Sync.shortcut", "Download YourOwnWeigh Sync", { attrs: { download: "YourOwnWeigh Sync.shortcut" } })}</p>${kv([["Server URL", raw(copyValue(origin, "Copy server URL"))], ["User ID or three-letter name", ids], ["Password", "Your Sync API password (the admin password unless you set a separate one)."]])}
+    <p class="hint">For a daily sync, create a Personal Automation in iPhone Shortcuts: Time of day → 09:00 → Daily → Run immediately → Run Shortcut → YourOwnWeigh Sync. Run the Shortcut manually any time too.</p></section>
+    <section class="card"><div class="card-header"><h2 class="card-title">Read over HTTP</h2></div><p>Use a numeric user ID or an unambiguous three-letter display name. Requests return JSON and do not mark readings as imported into Apple Health.</p><div class="code-box"><pre class="code" id="curl-example">${e(curl)}</pre>${copyButton("", "Copy curl command", "#curl-example")}</div><p class="hint">curl prompts for the password. Use HTTPS for remote servers. The household credential can read every user; the selected ID controls this request, not access rights.</p><p><code>/readings</code> returns all measurement groups, named metrics and raw values. Follow <code>next_cursor</code> using the <code>cursor</code> parameter to paginate. <code>/weights</code> remains available for weight-only clients.</p><p>The Apple Shortcut uses the separate <code>health-sync/next</code> and <code>health-sync/ack</code> endpoints so it acknowledges a reading only after writing it to Health.</p></section></div>`;
 }
 export function settingsWorkspace(
   csrf: string,
   unit: string,
   separate: boolean,
+  theme: "light" | "dark" | null = null,
 ): string {
-  return `<section class="page-heading"><h1>Settings</h1></section><div class="firmware-grid"><section><h2>Display</h2><form action="/preferences" method="post">${hidden(csrf)}<label>Weight Unit<select name="weight_unit">${[
-    ["kg", "Kilograms"],
-    ["lb", "Pounds"],
-    ["st", "Stones And Pounds"],
-  ]
-    .map(
-      ([v, l]) =>
-        `<option value="${v}"${v === unit ? " selected" : ""}>${l}</option>`,
-    )
-    .join(
-      "",
-    )}</select></label><button>Save Display Settings</button></form></section>
-    <section class="backup-panel"><h2>Backup And Restore</h2><p>Back up your household or restore a saved export.</p><div class="action-row"><a class="button secondary" href="/api/backup/export">Export Database</a><button type="button" class="secondary" data-open-dialog="backup-import-dialog">Import Database</button></div><p class="hint">Exports include device secrets and password hashes. Keep them private.</p></section></div>
-    <dialog id="backup-import-dialog"><button class="dialog-close" data-close-dialog type="button" aria-label="Close">×</button><h2>Import Database</h2><p>Choose a saved database export. You can review it before adding missing data or replacing the household.</p><form id="backup-import" action="/api/backup/import" method="post" enctype="multipart/form-data">${hidden(csrf)}<label>Backup File<input type="file" name="backup" accept=".json" required></label><p class="hint">Your current passwords stay unless you explicitly choose to restore access settings.</p><div class="dialog-actions"><button>Review Import</button><button type="button" class="secondary" data-close-dialog>Cancel</button></div></form></dialog>
-    <div class="firmware-grid"><section><h2>Admin Password</h2><p>${separate ? "The Sync API uses a separate password." : "The Sync API uses this password too. Update your Shortcut after changing it."}</p><form action="/settings" method="post">${hidden(csrf)}<input type="hidden" name="purpose" value="admin_password"><label>Current Admin Password<input name="current" type="password" required></label><label>New Password<input name="new" type="password" minlength="8" required></label><label>Confirm Password<input name="confirm" type="password" minlength="8" required></label><button>Change Admin Password</button></form></section>
-    <section><h2>Sync API Password</h2><form action="/settings" method="post">${hidden(csrf)}<input type="hidden" name="purpose" value="sync_password"><label>Current Admin Password<input name="current_admin" type="password" required></label><label><input type="checkbox" name="separate" value="1" data-toggle="sync-password-fields"${separate ? " checked" : ""}> Set Alternative Password For Sync API</label><div id="sync-password-fields"${separate ? "" : " hidden"}><label>New Sync Password<input name="new" type="password" minlength="8"></label><label>Confirm Sync Password<input name="confirm" type="password" minlength="8"></label></div><button>Save Sync Password Settings</button></form></section></div>`;
+  const units = [["kg", "Kilograms"], ["lb", "Pounds"], ["st", "Stones and pounds"]]
+    .map(([v, l]) => `<option value="${v}"${v === unit ? " selected" : ""}>${l}</option>`)
+    .join("");
+  const themes = [["system", "System"], ["light", "Light"], ["dark", "Dark"]]
+    .map(([v, l]) => `<option value="${v}"${v === (theme ?? "system") ? " selected" : ""}>${l}</option>`)
+    .join("");
+  return `${pageHeader({ title: "Settings", subtitle: "Display, backups and passwords" })}<div class="card-grid">
+    <section class="card"><div class="card-header"><h2 class="card-title">Display</h2></div><form action="/preferences" method="post" class="form-stack">${hidden(csrf)}<label>Weight unit<select name="weight_unit">${units}</select></label><div class="form-actions"><button>Save display settings</button></div></form>
+      <form action="/theme" method="get" class="form-stack theme-form"><input type="hidden" name="back" value="/settings"><label>Theme<select name="set" data-submit-on-change>${themes}</select></label><div class="form-actions no-js-only"><button class="secondary">Apply theme</button></div></form></section>
+    <section class="card backup-panel"><div class="card-header"><h2 class="card-title">Backup and restore</h2></div><p>Back up your household or restore a saved export.</p><div class="action-row"><a class="btn btn-secondary" href="/api/backup/export">Export database</a><button type="button" class="secondary" data-open-dialog="backup-import-dialog">Import database</button></div><p class="hint">Exports include device secrets and password hashes. Keep them private.</p></section>
+    <section class="card"><div class="card-header"><h2 class="card-title">Admin password</h2></div><p>${separate ? "The Sync API uses a separate password." : "The Sync API uses this password too. Update your Shortcut after changing it."}</p><form action="/settings" method="post" class="form-stack">${hidden(csrf)}<input type="hidden" name="purpose" value="admin_password"><label>Current admin password<input name="current" type="password" required autocomplete="current-password"></label><label>New password<input name="new" type="password" minlength="8" required autocomplete="new-password"></label><label>Confirm password<input name="confirm" type="password" minlength="8" required autocomplete="new-password"></label><div class="form-actions"><button>Change admin password</button></div></form></section>
+    <section class="card"><div class="card-header"><h2 class="card-title">Sync API password</h2></div><form action="/settings" method="post" class="form-stack">${hidden(csrf)}<input type="hidden" name="purpose" value="sync_password"><label>Current admin password<input name="current_admin" type="password" required autocomplete="current-password"></label><label><input type="checkbox" name="separate" value="1" data-toggle="sync-password-fields"${separate ? " checked" : ""}> Set an alternative password for the Sync API</label><div id="sync-password-fields" class="form-stack"${separate ? "" : " hidden"}><label>New sync password<input name="new" type="password" minlength="8" autocomplete="new-password"></label><label>Confirm sync password<input name="confirm" type="password" minlength="8" autocomplete="new-password"></label></div><div class="form-actions"><button>Save sync password settings</button></div></form></section></div>
+    <dialog id="backup-import-dialog"><button class="dialog-close" data-close-dialog type="button" aria-label="Close">×</button><h2>Import database</h2><p>Choose a saved database export. You can review it before adding missing data or replacing the household.</p><form id="backup-import" action="/api/backup/import" method="post" enctype="multipart/form-data" class="form-stack">${hidden(csrf)}<label>Backup file<input type="file" name="backup" accept=".json" required></label><p class="hint">Your current passwords stay unless you explicitly choose to restore access settings.</p><div class="dialog-actions"><button>Review import</button><button type="button" class="secondary" data-close-dialog>Cancel</button></div></form></dialog>`;
 }

@@ -210,7 +210,7 @@ test("upload, review and import through the app is repeatable without duplicates
       ).text();
     };
     const preview = await upload();
-    assert.match(preview, /Review Withings Import/);
+    assert.match(preview, /Review Withings Import/i);
     assert.match(preview, /<option value="5" selected>Uwe \(UWE\)/);
     assert.match(preview, /<option value="1" selected>Bath/);
     const id = /name="import_id" value="([^"]+)"/.exec(preview)![1];
