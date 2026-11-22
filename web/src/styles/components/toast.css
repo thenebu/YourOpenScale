@@ -1,1 +1,50 @@
-/* Owner: WP-04 (components). */
+/* Owner: WP-04. Toasts (container is created by JS, or by the shell). */
+.toast-region {
+  position: fixed;
+  inset-block-end: var(--space-4);
+  inset-inline: var(--space-4);
+  z-index: var(--z-toast);
+  display: grid;
+  justify-items: end;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: min(420px, 100%);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: inset 3px 0 0 var(--toast-color, var(--color-info)), var(--shadow-2);
+  font-size: var(--text-sm);
+  animation: toast-in var(--dur-2) var(--ease-out);
+}
+.toast > .icon {
+  flex: none;
+  color: var(--toast-color, var(--color-info));
+}
+.toast-good {
+  --toast-color: var(--color-good);
+}
+.toast-warn {
+  --toast-color: var(--color-warn);
+}
+.toast-bad {
+  --toast-color: var(--color-bad);
+}
+.toast[data-leaving] {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity var(--dur-2), transform var(--dur-2);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

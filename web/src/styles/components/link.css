@@ -1,1 +1,51 @@
-/* Owner: WP-04 (components). */
+/* Owner: WP-04. Links: plain links are not underlined; prose links keep a subtle underline (WCAG 1.4.1). */
+a {
+  color: var(--color-link);
+  text-decoration: none;
+}
+:where(p, li, dd, .prose, .hint, .callout, .hint-box, .notice, .flash, .empty, .empty-body) a:not(.btn, .button, .link, .chip, .card-link) {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+}
+:where(p, li, dd, .prose, .hint, .callout, .hint-box, .notice, .flash, .empty, .empty-body) a:not(.btn, .button, .link, .chip, .card-link):hover {
+  text-decoration-color: currentColor;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--color-link);
+  text-decoration: none;
+}
+.link:hover {
+  color: var(--color-accent-hover);
+}
+.link .icon {
+  flex: none;
+  transition: transform var(--dur-1);
+}
+.link:hover .icon-chevron-right {
+  transform: translateX(2px);
+}
+.link-back {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+.link-back:hover {
+  color: var(--color-link);
+}
+.link-back:hover .icon-chevron-left {
+  transform: translateX(-2px);
+}
+.link-quiet {
+  color: var(--color-text-muted);
+  font-weight: inherit;
+}
+.link-quiet:hover {
+  color: var(--color-link);
+}

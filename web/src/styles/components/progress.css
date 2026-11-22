@@ -1,1 +1,29 @@
-/* Owner: WP-04 (components). */
+/* Owner: WP-04. Progress bars: 6px track, accent fill. */
+.progress,
+progress {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--color-surface-sunken);
+  color: var(--color-accent);
+}
+.progress::-webkit-progress-bar,
+progress::-webkit-progress-bar {
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-pill);
+}
+.progress::-webkit-progress-value,
+progress::-webkit-progress-value {
+  background: var(--color-accent);
+  border-radius: var(--radius-pill);
+  transition: width var(--dur-2) var(--ease-out);
+}
+.progress::-moz-progress-bar,
+progress::-moz-progress-bar {
+  background: var(--color-accent);
+  border-radius: var(--radius-pill);
+}

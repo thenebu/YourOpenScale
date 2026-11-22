@@ -1,1 +1,60 @@
-/* Owner: WP-04 (components). */
+/* Owner: WP-04. Cards, and the legacy .cards/.card/.tiles grids. */
+.card {
+  container-type: inline-size;
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-5);
+}
+@media (min-width: 600px) {
+  .card {
+    padding: var(--space-6);
+  }
+}
+.card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.card-title {
+  font-size: var(--text-lg);
+  line-height: var(--leading-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-lg);
+}
+.card-actions {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.card-link {
+  color: inherit;
+  text-decoration: none;
+  transition: box-shadow var(--dur-2), border-color var(--dur-2);
+}
+a.card,
+.card-link {
+  display: block;
+}
+a.card:hover,
+.card-link:hover {
+  box-shadow: var(--shadow-2);
+  border-color: var(--color-border-strong);
+}
+
+/* Legacy grids */
+.cards,
+.device-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-4);
+}
+.cards > *,
+.device-grid > * {
+  min-width: 0;
+}

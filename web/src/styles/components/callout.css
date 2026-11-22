@@ -1,1 +1,57 @@
-/* Owner: WP-04 (components). */
+/* Owner: WP-04. Callouts; also maps legacy .hint-box, .notice and .flash. */
+.callout,
+.hint-box,
+.notice,
+.flash {
+  --callout-color: var(--color-info);
+  --callout-bg: var(--color-info-bg);
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--callout-bg);
+  color: var(--color-text);
+  box-shadow: inset 3px 0 0 var(--callout-color);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}
+.callout > .icon {
+  margin-top: 2px;
+  color: var(--callout-color);
+}
+/* Legacy boxes have no icon element: the text spans both columns. */
+:is(.hint-box, .notice, .flash) {
+  display: block;
+  padding-inline-start: calc(var(--space-4) + 3px);
+}
+.callout-good,
+.hint-box.good {
+  --callout-color: var(--color-good);
+  --callout-bg: var(--color-good-bg);
+}
+.callout-warn,
+.hint-box.warn {
+  --callout-color: var(--color-warn);
+  --callout-bg: var(--color-warn-bg);
+}
+.callout-bad,
+.flash.error,
+.flash.bad {
+  --callout-color: var(--color-bad);
+  --callout-bg: var(--color-bad-bg);
+}
+.callout-info {
+  --callout-color: var(--color-info);
+  --callout-bg: var(--color-info-bg);
+}
+.callout-body > :first-child,
+.callout-body > p {
+  margin: 0;
+}
+.callout-body > * + * {
+  margin-top: var(--space-1);
+}
+.callout-title {
+  font-weight: 600;
+}
