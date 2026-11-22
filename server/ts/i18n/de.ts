@@ -816,4 +816,13 @@ export const de: Record<MessageKey, string> = {
   "fwjs.flashPrompt": "Tippe {phrase}",
   "fwjs.enrollLocal": "Speichere diese Waage und wähle ihre lokalen Nutzer dann unter Waagen → Einstellungen bearbeiten. Ein Withings-Nutzerimport ist für dieses Modell nicht verfügbar.",
   "fwjs.hostLimits": "Hostname oder IPv4-Adresse · höchstens {limit} ASCII-Bytes · ohne Schema, Pfad oder Port",
+  // date format (R4b)
+  "set.dateFormat": "Datumsformat",
+  "set.timeFormat": "Zeitformat",
+  "set.formatExample": "Beispiel: {example}",
+  "set.formatHint": "Gilt für Datum und Uhrzeit in der App und in den Diagrammen. Exporte und Links behalten die ISO-Form (JJJJ-MM-TT). Native Datumsauswahlen folgen der Browsersprache.",
+  "set.applyFormat": "Formate übernehmen",
+  "fmt.auto": "Automatisch",
+  "fmt.24h": "24 Stunden",
+  "fmt.12h": "12 Stunden",
 };

@@ -59,7 +59,7 @@ test("layout: People dropdown needs two users", () => {
 });
 
 test("layout: theme attribute and footer links", () => {
-  assert.match(page({ theme: "dark" }), /<html lang="en" data-theme="dark">/);
+  assert.match(page({ theme: "dark" }), /<html lang="en" data-datefmt="auto" data-timefmt="auto" data-theme="dark">/);
   assert.doesNotMatch(page({ theme: null }), /data-theme="(light|dark)"/);
   const h = page({ theme: "light", back: "/users/1/overview?range=1y" });
   assert.match(h, /href="\/theme\?set=system&amp;back=%2Fusers%2F1%2Foverview%3Frange%3D1y"/);

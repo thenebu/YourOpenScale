@@ -23,6 +23,34 @@ export function currentLocale(): Locale {
   return isLocale(lang) ? lang : DEFAULT_LOCALE;
 }
 
+export const DATEFMT_COOKIE = "yos_datefmt";
+export const TIMEFMT_COOKIE = "yos_timefmt";
+export const DATE_FORMATS = ["auto", "dmy-dot", "ymd", "mdy", "dmy-slash"] as const;
+export const TIME_FORMATS = ["auto", "24h", "12h"] as const;
+export type DateFormatPref = (typeof DATE_FORMATS)[number];
+export type TimeFormatPref = (typeof TIME_FORMATS)[number];
+export interface DatePrefs {
+  date: DateFormatPref;
+  time: TimeFormatPref;
+}
+export const isDateFormat = (value: unknown): value is DateFormatPref => DATE_FORMATS.includes(value as DateFormatPref);
+export const isTimeFormat = (value: unknown): value is TimeFormatPref => TIME_FORMATS.includes(value as TimeFormatPref);
+
+let prefsProvider: (() => DatePrefs) | null = null;
+
+/** The server installs an AsyncLocalStorage-backed provider; the browser reads <html data-datefmt data-timefmt>. */
+export function setDatePrefsProvider(fn: (() => DatePrefs) | null): void {
+  prefsProvider = fn;
+}
+
+export function currentDatePrefs(): DatePrefs {
+  if (prefsProvider) return prefsProvider();
+  const data = (globalThis as { document?: { documentElement?: { dataset?: Record<string, string | undefined> } } }).document?.documentElement?.dataset;
+  const date = data?.datefmt;
+  const time = data?.timefmt;
+  return { date: isDateFormat(date) ? date : "auto", time: isTimeFormat(time) ? time : "auto" };
+}
+
 /** ICU-lite plural choice: `plural(2, { one: "day", other: "days" })`. */
 export function plural<T>(n: number, forms: { one: T; other: T }, locale: Locale = currentLocale()): T {
   return new Intl.PluralRules(intlTag(locale)).select(n) === "one" ? forms.one : forms.other;

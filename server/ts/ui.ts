@@ -1,7 +1,7 @@
 /** Small server-rendered views shared by the Worker and local Node entrypoint. */
 import { scaleModel } from "./models.ts";
-import { LOCALES, currentLocale, intlTag, t, type Locale } from "./i18n/index.ts";
-import { formatMass } from "./analysis/format.ts";
+import { LOCALES, currentDatePrefs, currentLocale, intlTag, t, type Locale } from "./i18n/index.ts";
+import { formatDate, formatDateTime, formatMass } from "./analysis/format.ts";
 import { METRICS, metricLabelText, storedMeasures, type Metric } from "./metrics.ts";
 import type { StageMeta } from "./withings_import.ts";
 import { timeZoneSelect } from "./integrated_ui.ts";
@@ -24,16 +24,16 @@ export const hidden = (csrf: string) =>
   `<input type="hidden" name="_csrf" value="${e(csrf)}">`;
 const option = (value: string | number, label: string, selected: unknown) =>
   `<option value="${e(value)}"${String(value) === String(selected) ? " selected" : ""}>${e(label)}</option>`;
+/** Zone used for server-rendered reading times: the process zone, as before the format preference existed. */
+const localZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 export const timeLabel = (value: unknown): string => {
   const date = new Date(n(value) * 1000);
-  return Number.isFinite(date.valueOf()) && n(value) > 0
-    ? e(
-        new Intl.DateTimeFormat(intlTag(currentLocale()), {
-          dateStyle: "medium",
-          timeStyle: "short",
-        }).format(date),
-      )
-    : t("common.unknown");
+  return Number.isFinite(date.valueOf()) && n(value) > 0 ? e(formatDateTime(n(value), localZone())) : t("common.unknown");
+};
+/** A stored YYYY-MM-DD day as display text (other values pass through). */
+export const dayText = (value: unknown): string => {
+  const text = String(value ?? "");
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? formatDate(Date.parse(`${text}T12:00:00Z`) / 1000, "UTC", "medium") : text;
 };
 function kgText(kg: number, unit: string): string {
   return formatMass(kg, unit === "lb" || unit === "st" ? unit : "kg");
@@ -146,7 +146,7 @@ export function layout(
   const flash = notice
     ? `<div class="flash-wrap"><div class="flash callout callout-info" role="status">${icon("info", { size: 20 })}<div>${e(notice)}</div><button type="button" class="btn btn-ghost btn-icon btn-sm flash-dismiss" data-dismiss aria-label="${e(t("flash.dismiss"))}">${icon("x", { size: 16 })}</button></div></div>`
     : "";
-  return `<!doctype html><html lang="${currentLocale()}"${opts.theme ? ` data-theme="${opts.theme}"` : ""}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  return `<!doctype html><html lang="${currentLocale()}" data-datefmt="${currentDatePrefs().date}" data-timefmt="${currentDatePrefs().time}"${opts.theme ? ` data-theme="${opts.theme}"` : ""}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <title>${e(title)} · YourOpenScale</title><link rel="icon" href="/favicon.png" type="image/png">${PWA_HEAD}
     <meta name="csrf-token" content="${e(csrf)}"><script src="/app.js?v=${WEB_APP_VERSION}" defer></script>${assetTags(opts.entries ?? ["app"])}</head><body>
     ${nav}
@@ -176,15 +176,13 @@ export function pageHref(path: string, params: Record<string, string | number | 
     .join("&");
   return qs ? `${path}?${qs}` : path;
 }
-const dateOnly = (value: unknown): string =>
-  new Intl.DateTimeFormat(intlTag(currentLocale()), { dateStyle: "medium" }).format(new Date(n(value) * 1000));
-const clockOnly = (value: unknown): string =>
-  new Intl.DateTimeFormat(intlTag(currentLocale()), { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(n(value) * 1000));
+const dateOnly = (value: unknown): string => formatDate(n(value), localZone(), "medium");
+const clockOnly = (value: unknown): string => formatDate(n(value), localZone(), "time");
 function readingTime(row: Row): string {
   const trusted = row.time_quality === "trusted";
   const at = trusted ? row.meastime : row.first_received_at;
   if (!(n(at) > 0)) return t("common.unknown");
-  return `<span class="when"><span class="when-date">${e(dateOnly(at))}</span> <span class="when-time">${e(clockOnly(at))}</span></span>${trusted ? "" : `<span class="hint">${e(t("readings.receivedTime"))}</span>`}`;
+  return `<time class="when" datetime="${new Date(n(at) * 1000).toISOString()}"><span class="when-date">${e(dateOnly(at))}</span> <span class="when-time">${e(clockOnly(at))}</span></time>${trusted ? "" : `<span class="hint">${e(t("readings.receivedTime"))}</span>`}`;
 }
 function healthSyncStatus(row: Row): string {
   if (!row.user_id || row.weight_value == null)
@@ -347,7 +345,7 @@ export function usersPage(
     ${users
       .map((u) => {
         const names = scales.filter((s) => memberships.get(u.id)?.has(s.id));
-        return `<tr><td data-label="${e(t("users.name"))}"><a class="link" href="/users/${e(u.id)}/overview">${e(u.name)}</a></td><td data-label="${e(t("users.shortName"))}">${e(u.short_name)}</td><td data-label="${e(t("users.height"))}">${Math.round(n(u.height_cm))} cm</td><td data-label="${e(t("users.ageDob"))}">${e(u.birth_date || u.age_years) || "—"}</td><td data-label="${e(t("users.sex"))}">${e(u.sex === 0 ? t("common.male") : t("common.female"))}</td>
+        return `<tr><td data-label="${e(t("users.name"))}"><a class="link" href="/users/${e(u.id)}/overview">${e(u.name)}</a></td><td data-label="${e(t("users.shortName"))}">${e(u.short_name)}</td><td data-label="${e(t("users.height"))}">${Math.round(n(u.height_cm))} cm</td><td data-label="${e(t("users.ageDob"))}">${e(dayText(u.birth_date) || u.age_years) || "—"}</td><td data-label="${e(t("users.sex"))}">${e(u.sex === 0 ? t("common.male") : t("common.female"))}</td>
       <td data-label="${e(t("users.scales"))}">${names.length ? `<span class="badge-list">${names.map((s) => badge(String(s.label))).join("")}</span>` : '<span class="muted">—</span>'}</td><td data-label="${e(t("users.status"))}">${u.active ? badge(t("common.active"), "good") : badge(t("common.retired"))}</td><td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-open-dialog="edit-user-${e(u.id)}" aria-label="${e(t("users.editName", { name: String(u.name) }))}">${icon("pencil", { size: 16 })}${e(t("common.edit"))}</button></td></tr>`;
       })
       .join("")}</tbody></table></div></section>`
@@ -383,7 +381,7 @@ export function withingsPreviewPage(
   suggestion: { id: number; reason: string } | null,
   scaleMatch: number | null,
 ): string {
-  const day = (d: string) => d.slice(0, 10);
+  const day = (d: string) => dayText(d.slice(0, 10));
   const needs = !scales.length
     ? '<div class="callout callout-warn" role="alert">' + icon("alert-triangle", { size: 20 }) + '<div class="callout-body">' + e(t("import.needScale")) + ' <a href="/scales">' + e(t("import.goToScales")) + '</a></div></div>'
     : "";

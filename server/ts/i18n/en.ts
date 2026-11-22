@@ -814,6 +814,15 @@ export const en = {
   "fwjs.flashPrompt": "Type {phrase}",
   "fwjs.enrollLocal": "Save this scale, then choose its local users in Scales → Edit Settings. Withings user import is unavailable for this model.",
   "fwjs.hostLimits": "Hostname Or IPv4 Address · Maximum {limit} ASCII Bytes · No Scheme, Path Or Port",
+  // date format (R4b)
+  "set.dateFormat": "Date format",
+  "set.timeFormat": "Time format",
+  "set.formatExample": "Example: {example}",
+  "set.formatHint": "Applies to dates and times shown in the app and its charts. Exports and links keep the ISO form (YYYY-MM-DD). Native date pickers follow your browser language.",
+  "set.applyFormat": "Apply formats",
+  "fmt.auto": "Automatic",
+  "fmt.24h": "24-hour",
+  "fmt.12h": "12-hour",
 } as const;
 
 export type MessageKey = keyof typeof en;

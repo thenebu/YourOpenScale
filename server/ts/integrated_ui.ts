@@ -1,6 +1,7 @@
 /** Household and firmware views; all Bluetooth operations belong to the bridge. */
 import { SCALE_MODELS, scaleModel } from "./models.ts";
-import { currentLocale, t } from "./i18n/index.ts";
+import { DATE_FORMATS, TIME_FORMATS, currentDatePrefs, currentLocale, t, withDatePrefs } from "./i18n/index.ts";
+import { formatDate, formatDateTime } from "./analysis/format.ts";
 import { escapeHtml as e, hidden, timeLabel } from "./ui.ts";
 import { WEB_APP_VERSION } from "./version.ts";
 import { icon } from "./views/icons.ts";
@@ -92,7 +93,7 @@ function editDevice(s: Row, csrf: string, users: Row[]): string {
 function firmwareRow(s: Row): string {
   const known = s.firmware_version != null && s.firmware_confirmed_at != null;
   const hint = known
-    ? t("sc.confirmedVia", { when: new Date(s.firmware_confirmed_at * 1000).toISOString().replace("T", " ").replace(".000Z", " UTC"), via: s.firmware_source === "wifi" ? t("sc.viaWifi") : t("sc.viaBluetooth") })
+    ? t("sc.confirmedVia", { when: `${formatDateTime(Number(s.firmware_confirmed_at), "UTC")} UTC`, via: s.firmware_source === "wifi" ? t("sc.viaWifi") : t("sc.viaBluetooth") })
     : t("sc.noFirmwareSeen");
   return `<tr><th>${e(t("fw.firmware"))} <span class="info-tip" tabindex="0" role="note" aria-label="${e(t("sc.firmwareConfirmation"))}" aria-describedby="firmware-time-${e(s.id)}"><span aria-hidden="true">ⓘ</span><span role="tooltip" id="firmware-time-${e(s.id)}">${e(hint)}</span></span></th><td>${known ? `v${e(s.firmware_version)}` : e(t("sc.notYetConfirmed"))}</td></tr>`;
 }
@@ -157,10 +158,19 @@ export function settingsWorkspace(
   const langs = (["en", "de"] as const)
     .map((v) => `<option value="${v}"${v === currentLocale() ? " selected" : ""}>${e(t(`lang.${v}`))}</option>`)
     .join("");
+  const prefs = currentDatePrefs();
+  const now = Math.floor(Date.now() / 1000);
+  const sample = (date: typeof prefs.date, time: typeof prefs.time, style: "medium" | "time") => withDatePrefs({ date, time }, () => formatDate(now, "UTC", style));
+  const dateLabel = (v: string) => (v === "auto" ? `${t("fmt.auto")} (${sample("auto", prefs.time, "medium")})` : sample(v as typeof prefs.date, prefs.time, "medium"));
+  const timeLabelOf = (v: string) => (v === "auto" ? `${t("fmt.auto")} (${sample(prefs.date, "auto", "time")})` : sample(prefs.date, v as typeof prefs.time, "time"));
+  const dateOptions = DATE_FORMATS.map((v) => `<option value="${v}"${v === prefs.date ? " selected" : ""}>${e(dateLabel(v))}</option>`).join("");
+  const timeOptions = TIME_FORMATS.map((v) => `<option value="${v}"${v === prefs.time ? " selected" : ""}>${e(v === "auto" ? timeLabelOf(v) : v === "24h" ? `${t("fmt.24h")} (${timeLabelOf(v)})` : `${t("fmt.12h")} (${timeLabelOf(v)})`)}</option>`).join("");
+  const formatForm = `<form action="/prefs" method="get" class="form-stack format-form"><input type="hidden" name="back" value="/settings"><label>${e(t("set.dateFormat"))}<select name="datefmt" data-submit-on-change>${dateOptions}</select></label><label>${e(t("set.timeFormat"))}<select name="timefmt" data-submit-on-change>${timeOptions}</select></label><p class="hint format-example">${e(t("set.formatExample", { example: formatDateTime(now, "UTC") }))}</p><p class="hint">${e(t("set.formatHint"))}</p><div class="form-actions no-js-only"><button class="secondary">${e(t("set.applyFormat"))}</button></div></form>`;
   return `${pageHeader({ title: t("set.title"), subtitle: t("set.subtitle") })}<div class="card-grid">
     <section class="card"><div class="card-header"><h2 class="card-title">${e(t("set.display"))}</h2></div><form action="/preferences" method="post" class="form-stack">${hidden(csrf)}<label>${e(t("set.weightUnit"))}<select name="weight_unit">${units}</select></label><div class="form-actions"><button>${e(t("set.saveDisplay"))}</button></div></form>
       <form action="/theme" method="get" class="form-stack theme-form"><input type="hidden" name="back" value="/settings"><label>${e(t("set.theme"))}<select name="set" data-submit-on-change>${themes}</select></label><div class="form-actions no-js-only"><button class="secondary">${e(t("set.applyTheme"))}</button></div></form>
-      <form action="/lang" method="get" class="form-stack lang-form"><input type="hidden" name="back" value="/settings"><label>${e(t("set.language"))}<select name="set" data-submit-on-change>${langs}</select></label><div class="form-actions no-js-only"><button class="secondary">${e(t("set.applyLanguage"))}</button></div></form></section>
+      <form action="/lang" method="get" class="form-stack lang-form"><input type="hidden" name="back" value="/settings"><label>${e(t("set.language"))}<select name="set" data-submit-on-change>${langs}</select></label><div class="form-actions no-js-only"><button class="secondary">${e(t("set.applyLanguage"))}</button></div></form>
+      ${formatForm}</section>
     <section class="card backup-panel"><div class="card-header"><h2 class="card-title">${e(t("set.backup"))}</h2></div><p>${e(t("set.backupText"))}</p><div class="action-row"><a class="btn btn-secondary" href="/api/backup/export">${e(t("set.exportDb"))}</a><button type="button" class="secondary" data-open-dialog="backup-import-dialog">${e(t("set.importDb"))}</button></div><p class="hint">${e(t("set.exportHint"))}</p></section>
     <section class="card"><div class="card-header"><h2 class="card-title">${e(t("set.adminPassword"))}</h2></div><p>${e(separate ? t("set.separateText") : t("set.sharedText"))}</p><form action="/settings" method="post" class="form-stack">${hidden(csrf)}<input type="hidden" name="purpose" value="admin_password"><label>${e(t("set.currentAdmin"))}<input name="current" type="password" required autocomplete="current-password"></label><label>${e(t("set.newPassword"))}<input name="new" type="password" minlength="8" required autocomplete="new-password"></label><label>${e(t("set.confirmPassword"))}<input name="confirm" type="password" minlength="8" required autocomplete="new-password"></label><div class="form-actions"><button>${e(t("set.changeAdmin"))}</button></div></form></section>
     <section class="card"><div class="card-header"><h2 class="card-title">${e(t("set.syncPassword"))}</h2></div><form action="/settings" method="post" class="form-stack">${hidden(csrf)}<input type="hidden" name="purpose" value="sync_password"><label>${e(t("set.currentAdmin"))}<input name="current_admin" type="password" required autocomplete="current-password"></label><label><input type="checkbox" name="separate" value="1" data-toggle="sync-password-fields"${separate ? " checked" : ""}> ${e(t("set.separateSync"))}</label><div id="sync-password-fields" class="form-stack"${separate ? "" : " hidden"}><label>${e(t("set.newSync"))}<input name="new" type="password" minlength="8" autocomplete="new-password"></label><label>${e(t("set.confirmSync"))}<input name="confirm" type="password" minlength="8" autocomplete="new-password"></label></div><div class="form-actions"><button>${e(t("set.saveSync"))}</button></div></form></section></div>

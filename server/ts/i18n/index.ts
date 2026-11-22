@@ -2,8 +2,9 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { de } from "./de.ts";
 import { en, type MessageKey } from "./en.ts";
-import { DEFAULT_LOCALE, LANG_COOKIE, currentLocale, interpolate, isLocale, setLocaleProvider, type Locale } from "./locale.ts";
+import { DEFAULT_LOCALE, LANG_COOKIE, currentLocale, interpolate, isLocale, setDatePrefsProvider, setLocaleProvider, type DatePrefs, type Locale } from "./locale.ts";
 
+export { DATEFMT_COOKIE, DATE_FORMATS, TIMEFMT_COOKIE, TIME_FORMATS, currentDatePrefs, isDateFormat, isTimeFormat, type DateFormatPref, type DatePrefs, type TimeFormatPref } from "./locale.ts";
 export { DEFAULT_LOCALE, LANG_COOKIE, LOCALES, currentLocale, decimal, intlTag, interpolate, isLocale, percent, plural, type Locale } from "./locale.ts";
 export type { MessageKey } from "./en.ts";
 
@@ -11,6 +12,14 @@ export const catalogues: Record<Locale, Record<MessageKey, string>> = { en, de }
 
 const store = new AsyncLocalStorage<Locale>();
 setLocaleProvider(() => store.getStore() ?? DEFAULT_LOCALE);
+
+const prefsStore = new AsyncLocalStorage<DatePrefs>();
+setDatePrefsProvider(() => prefsStore.getStore() ?? { date: "auto", time: "auto" });
+
+/** Runs `fn` with the date/time display preferences of the request. */
+export function withDatePrefs<T>(prefs: DatePrefs, fn: () => T): T {
+  return prefsStore.run(prefs, fn);
+}
 
 /** Runs `fn` with `locale` as the current locale; async continuations keep it. */
 export function withLocale<T>(locale: Locale, fn: () => T): T {

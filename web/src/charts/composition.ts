@@ -1,6 +1,6 @@
 /** Body composition charts (03 §4.13/§5): fat vs lean trend lines, and monthly stacked bars. */
 import { extent } from "./extent.ts";
-import { formatMass, toDisplay } from "@analysis/format.ts";
+import { formatDate, formatMass, toDisplay } from "@analysis/format.ts";
 import { trendAt } from "@analysis/trend.ts";
 import type { MetricAnalysis, Unit } from "@analysis/types.ts";
 import { resolveMetric } from "./data.ts";
@@ -9,11 +9,9 @@ import type { Opt, Tip } from "./bars.ts";
 import type { ECharts } from "./echarts.ts";
 import { lowerBound, slice } from "./lod.ts";
 import type { Mounted } from "./mount.ts";
-import { t as i18n, tag } from "../i18n/index.ts";
+import { dayAxis, t as i18n, tag } from "../i18n/index.ts";
 
-const day = (t: number) =>
-  new Intl.DateTimeFormat(tag(), { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
-    .format(new Date(t * 1000)).replace(/^(\p{L}+) /u, "$1, ");
+const day = (t: number) => formatDate(t, "UTC", "day");
 
 // ---------------------------------------------------------------------------------------------
 // Dual trend lines
@@ -94,7 +92,7 @@ export function mountComposition(
         type: "time", gridIndex, min: t0 * 1000, max: t1 * 1000, show: true,
         axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
         axisLabel: { show: visible, hideOverlap: true, fontSize: 12, color: theme.axis, margin: 10,
-          formatter: { year: "{MMM} '{yy}", month: "{MMM} '{yy}", day: "{d} {MMM}", none: "{d} {MMM}" } },
+          formatter: { year: "{MMM} '{yy}", month: "{MMM} '{yy}", day: dayAxis(), none: dayAxis() } },
         axisPointer: { type: "line", snap: true, label: { show: false }, lineStyle: { color: theme.crosshair, width: 1 } },
       });
       const yAxis = (lo: number, hi: number, gridIndex: number): Opt => {
