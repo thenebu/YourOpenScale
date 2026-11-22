@@ -1,4 +1,29 @@
-# Fork deploy and rollback (UI overhaul)
+# Fork deploy and rollback
+
+Deploy with one command from the repo root, on a clean, committed tree:
+
+```sh
+tools/deploy.sh              # typecheck + tests, backup, build on the host, switch, smoke check
+tools/deploy.sh --dry-run    # everything up to the build, changes nothing on the host
+tools/deploy.sh status       # running tag, previous tag, images on the host
+tools/deploy.sh rollback     # back to the previous image
+```
+
+What it does: ships `git archive HEAD` to the host over ssh, backs up the SQLite DB
+(`data/yow.sqlite3.bak-<timestamp>`), builds `yos-local:<short-commit>`, sets that tag in
+the compose file (remembering the old one in `.deploy-prev`), runs `docker compose up -d`,
+waits for the container's healthcheck, checks that the public `/login` shows the new version
+and that `/offline`, `/sw.js` and `/manifest.webmanifest` return 200. If the container does
+not become healthy or the smoke check fails it rolls back by itself. It keeps the last 3
+images and 5 DB backups. The version shown in the footer comes from `package.json`, so bump
+it (see CONTRIBUTING.md) before deploying a user-visible change.
+
+Defaults match the current host and can be overridden with environment variables:
+`DEPLOY_HOST` (`alfred`), `DEPLOY_DIR` (`docker/yow`, relative to the ssh home),
+`PUBLIC_URL` (`https://waage.schuessler.cloud`), `KEEP_IMAGES`, `KEEP_BACKUPS`.
+
+The notes below are the manual steps the script automates (UI overhaul era), kept for
+reference and for a fresh host.
 
 The image is built by the owner on the deploy host; there is no GHCR. The web
 bundle is built inside the image (`web` stage), so no local build step is needed.

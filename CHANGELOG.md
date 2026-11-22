@@ -6,6 +6,10 @@ All notable changes to YourOpenScale are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `tools/deploy.sh`: one-command deploy with tests, DB backup, healthcheck wait, smoke check, automatic rollback and pruning, plus `rollback` and `status`.
+- Container healthcheck in the Dockerfile.
+
 ## [1.2.0] - 2026-11-22
 
 ### Changed

@@ -55,4 +55,4 @@ To release:
 
 1. Move the "Unreleased" notes in `CHANGELOG.md` under a new `## [X.Y.Z] - date` heading.
 2. `npm version patch|minor|major` (bumps `package.json`, commits and creates the tag `vX.Y.Z`; add `--no-git-tag-version` to do it by hand).
-3. `git push --follow-tags`, then rebuild the image (`docker/FORK-DEPLOY.md`).
+3. Deploy with `tools/deploy.sh` (`docker/FORK-DEPLOY.md`). Push tags only to your own remote: in this fork `origin` is still the upstream repository, and pushing a `v*` tag there triggers its release workflow.
