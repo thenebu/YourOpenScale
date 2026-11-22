@@ -214,7 +214,7 @@ function html(body: string, status = 200, cookie?: string): Response {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "Content-Security-Policy":
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   });
   if (cookie) headers.set("Set-Cookie", cookie);
   return new Response(body, { status, headers });
@@ -1540,13 +1540,14 @@ export async function handleApp(
   const path = url.pathname;
   const method = request.method;
   if (
-    [
+    ([
       "/app.css",
       "/app.js",
       "/firmware.js",
       "/favicon.png",
       "/YourOwnWeigh-Sync.shortcut",
-    ].includes(path) &&
+    ].includes(path) ||
+      path.startsWith("/assets/")) &&
     method === "GET"
   ) {
     return env.ASSETS
