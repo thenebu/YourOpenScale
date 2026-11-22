@@ -14,6 +14,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { isIP } from "node:net";
 import { LocalSqlite } from "./sqlite.ts";
+import { assetPath } from "./assets.ts";
 import { handleApp, type AppEnv } from "./app.ts";
 import { captureWithings, firmwareOffer } from "./withings_capture.ts";
 import { NodeBridge } from "./bridge_node.ts";
@@ -41,9 +42,41 @@ const mime: Record<string, string> = {
   "favicon.png": "image/png",
   "YourOwnWeigh-Sync.shortcut": "application/octet-stream",
 };
+const assetMime: Record<string, string> = {
+  js: "text/javascript; charset=utf-8",
+  css: "text/css; charset=utf-8",
+  woff2: "font/woff2",
+  svg: "image/svg+xml",
+  png: "image/png",
+  json: "application/json; charset=utf-8",
+};
+function builtAsset(pathname: string): Response {
+  let name: string;
+  try {
+    name = decodeURIComponent(pathname.slice("/assets/".length));
+  } catch {
+    return new Response("Not Found", { status: 404 });
+  }
+  const path = /^[A-Za-z0-9._-]+$/.test(name) ? assetPath(name) : null;
+  const type = assetMime[name.slice(name.lastIndexOf(".") + 1)];
+  if (!path || !type) return new Response("Not Found", { status: 404 });
+  try {
+    return new Response(readFileSync(path), {
+      headers: {
+        "Content-Type": type,
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  } catch {
+    return new Response("Not Found", { status: 404 });
+  }
+}
 export function assets(): AppEnv["ASSETS"] {
   return {
     async fetch(request) {
+      const pathname = new URL(request.url).pathname;
+      if (pathname.startsWith("/assets/")) return builtAsset(pathname);
       const filename = decodeURIComponent(
         new URL(request.url).pathname.slice(1),
       );
