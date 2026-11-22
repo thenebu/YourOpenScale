@@ -33,3 +33,14 @@ export const METRIC_SPEC: MetricSpec[] = [
 export function specFor(type: number): MetricSpec | undefined {
   return METRIC_SPEC.find((spec) => spec.type === type);
 }
+
+/**
+ * Overview range presets (moved from ui.ts in WP-13; the only edit to this file after WP-00).
+ * `days: 0` means all history.
+ */
+export const RANGES = [
+  { key: "30d", label: "30 days", days: 30 },
+  { key: "90d", label: "90 days", days: 90 },
+  { key: "1y", label: "1 year", days: 365 },
+  { key: "all", label: "All", days: 0 },
+] as const;

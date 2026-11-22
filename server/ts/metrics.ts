@@ -1,4 +1,4 @@
-import type { Point } from "./charts.ts";
+import type { Point } from "./analysis/types.ts";
 /** Known public Withings metric IDs. Unknown IDs remain available as raw measures.
  * Raw measures retain the exact wire integer/exponent representation; named API
  * values are JSON numbers so clients need no locale-dependent text parsing.
