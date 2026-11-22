@@ -1,3 +1,4 @@
+import type { Point } from "./charts.ts";
 /** Known public Withings metric IDs. Unknown IDs remain available as raw measures.
  * Raw measures retain the exact wire integer/exponent representation; named API
  * values are JSON numbers so clients need no locale-dependent text parsing.
@@ -169,4 +170,47 @@ export async function observedMetrics(
     .all<{ type: number }>();
   const seen = new Set([1, ...result.results.map((r) => r.type)]);
   return METRICS.filter((m) => seen.has(m.type));
+}
+
+/** Time series for one metric of one user, oldest first, in the metric's native
+ * unit (kg for mass metrics). Uses the same ordering time as the reading lists:
+ * the device clock when trusted, otherwise the server receive time. Readings
+ * holding several values of the type (e.g. body segments) are skipped, as in
+ * namedMetrics(). `since` is epoch seconds (0 for all history).
+ */
+export async function metricSeries(
+  db: D1Database,
+  userId: number,
+  type: number,
+  since = 0,
+): Promise<Point[]> {
+  const time =
+    "CASE WHEN r.time_quality='trusted' THEN r.meastime ELSE r.first_received_at END";
+  const result = await db
+    .prepare(
+      type === 1
+        ? `SELECT r.id, ${time} AS t, r.weight_value AS value, r.weight_unit AS unit FROM readings r
+           WHERE r.user_id=? AND r.weight_value IS NOT NULL AND ${time}>=? ORDER BY ${time}, r.id`
+        : `SELECT r.id, ${time} AS t, json_extract(m.value,'$.value') AS value, json_extract(m.value,'$.unit') AS unit
+           FROM readings r, json_each(r.measures_json) m
+           WHERE r.user_id=? AND json_extract(m.value,'$.type')=? AND ${time}>=? ORDER BY ${time}, r.id`,
+    )
+    .bind(...(type === 1 ? [userId, since] : [userId, type, since]))
+    .all<{ id: number; t: number; value: number; unit: number }>();
+  const counts = new Map<number, number>();
+  for (const row of result.results)
+    counts.set(row.id, (counts.get(row.id) ?? 0) + 1);
+  const points: Point[] = [];
+  for (const row of result.results) {
+    if (counts.get(row.id) !== 1 || !(row.t > 0)) continue;
+    try {
+      points.push({
+        t: row.t,
+        v: metricValue(Number(row.value), Number(row.unit)),
+      });
+    } catch {
+      // Ignore a malformed stored measure rather than failing the dashboard.
+    }
+  }
+  return points;
 }

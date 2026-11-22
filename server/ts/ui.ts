@@ -1,6 +1,10 @@
 /** Small server-rendered views shared by the Worker and local Node entrypoint. */
 import { scaleModel } from "./models.ts";
 import { METRICS, storedMeasures, type Metric } from "./metrics.ts";
+import { barChart, lineChart, sparkline, stats, type Point } from "./charts.ts";
+import { MORNING, clock, type Habits } from "./habits.ts";
+import type { StageMeta } from "./withings_import.ts";
+import { timeZoneSelect } from "./integrated_ui.ts";
 import { WEB_APP_VERSION } from "./version.ts";
 type Row = Record<string, any>;
 export const escapeHtml = (value: unknown): string =>
@@ -28,15 +32,18 @@ export const timeLabel = (value: unknown): string => {
       )
     : "Unknown";
 };
-export function weightLabel(row: Row, unit: string): string {
-  if (row.weight_value == null || row.weight_unit == null) return "—";
-  const kg = n(row.weight_value) * 10 ** n(row.weight_unit);
-  if (unit === "lb") return `${(kg * 2.2046226218487757).toFixed(1)} lb`;
+const KG_TO_LB = 2.2046226218487757;
+function kgText(kg: number, unit: string): string {
+  if (unit === "lb") return `${(kg * KG_TO_LB).toFixed(1)} lb`;
   if (unit === "st") {
-    const tenths = Math.round(kg * 2.2046226218487757 * 10);
+    const tenths = Math.round(kg * KG_TO_LB * 10);
     return `${Math.floor(tenths / 140)} st ${((tenths % 140) / 10).toFixed(1)} lb`;
   }
   return `${kg.toFixed(2)} kg`;
+}
+export function weightLabel(row: Row, unit: string): string {
+  if (row.weight_value == null || row.weight_unit == null) return "—";
+  return kgText(n(row.weight_value) * 10 ** n(row.weight_unit), unit);
 }
 function metricPicker(
   metrics: Metric[],
@@ -135,41 +142,234 @@ function healthSyncStatus(row: Row): string {
     return '<span class="muted">Not Acknowledged</span>';
   return `<span class="badge">Acknowledged</span><time class="hint" datetime="${new Date(acknowledgedAt * 1000).toISOString()}">${timeLabel(acknowledgedAt)}</time>`;
 }
-export function dashboardPage(
-  cards: Array<{
-    user: Row;
-    readings: Row[];
-    metrics?: Metric[];
-    metric?: number;
-  }>,
+/** Metrics shown as overview tiles on the dashboard (when they have values in
+ * range); the rest live on the user page. */
+export const DASHBOARD_METRICS: readonly number[] = [1, 6, 8, 76, 77, 88, 11];
+export const RANGES = [
+  { key: "30d", label: "30 days", days: 30 },
+  { key: "90d", label: "90 days", days: 90 },
+  { key: "1y", label: "1 year", days: 365 },
+  { key: "all", label: "All", days: 0 },
+] as const;
+export type RangeKey = (typeof RANGES)[number]["key"];
+const number = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2 });
+const signed = (value: number, suffix: string) =>
+  `${value < 0 ? "−" : "+"}${number.format(Math.abs(Math.round(value * 100) / 100))}${suffix}`;
+/** Plot scale and plain-text formatters for a metric in the chosen weight unit. */
+function plotFor(type: number, unit: string) {
+  const metric = METRICS.find((m) => m.type === type)!;
+  if (metric.unit === "kg") {
+    // Stones are plotted as decimal stones; text and deltas stay in st/lb.
+    const scale = unit === "lb" ? KG_TO_LB : unit === "st" ? KG_TO_LB / 14 : 1;
+    const deltaUnit = unit === "kg" ? "kg" : "lb";
+    return {
+      scale,
+      unit: unit === "st" ? "st" : unit,
+      text: (v: number) => kgText(v / scale, unit),
+      axis: (v: number) => number.format(v),
+      delta: (v: number) =>
+        signed((v / scale) * (unit === "kg" ? 1 : KG_TO_LB), ` ${deltaUnit}`),
+    };
+  }
+  const suffix = metric.unit === "index" ? "" : ` ${metric.unit}`;
+  return {
+    scale: 1,
+    unit: metric.unit === "index" ? "" : metric.unit,
+    text: (v: number) => `${number.format(v)}${suffix}`,
+    axis: (v: number) => number.format(v),
+    delta: (v: number) => signed(v, suffix),
+  };
+}
+const scalePoints = (points: Point[], scale: number) =>
+  scale === 1 ? points : points.map((p) => ({ t: p.t, v: p.v * scale }));
+type DashboardCard = {
+  user: Row;
+  readings: Row[];
+  metrics?: Metric[];
+  metric?: number;
+  range?: RangeKey;
+  /** Raw (native unit, oldest first) series for each observed metric in range. */
+  series?: Record<number, Point[]>;
+  from?: number;
+  to?: number;
+};
+function dashboardCard(
+  card: DashboardCard,
   unit: string,
+  href: (user: number, change: Record<string, string>) => string,
 ): string {
-  const selections = Object.fromEntries(
-    cards.map(({ user, metric = 1 }) => [`metric_${user.id}`, metric]),
-  );
+  const {
+    user,
+    readings,
+    metrics = [METRICS[0]],
+    metric = 1,
+    range = "90d",
+    series = {},
+    from = 0,
+    to = 1,
+  } = card;
+  const rangeInfo = RANGES.find((r) => r.key === range)!;
+  const plot = plotFor(metric, unit);
+  const raw = series[metric] ?? [];
+  const points = scalePoints(raw, plot.scale);
+  const s = stats(points);
+  const heading = metricTitle(metric);
+  const rangeSwitch = `<div class="range-switch" role="group" aria-label="Time range">${RANGES.map(
+    (r) =>
+      `<a href="${e(href(user.id, { [`range_${user.id}`]: r.key }))}"${r.key === range ? ' aria-current="true"' : ""}>${r.label}</a>`,
+  ).join("")}</div>`;
+  const chart = points.length
+    ? lineChart(points, {
+        from,
+        to,
+        label: `${heading} over ${rangeInfo.days ? `the last ${rangeInfo.label}` : "all time"}`,
+        text: plot.text,
+        axis: plot.axis,
+      })
+    : `<p class="empty">No ${e(heading)} readings in this range.</p>`;
+  const summary = s
+    ? `<dl class="chart-stats">${points.length > 1 ? `<div><dt>Change</dt><dd>${e(plot.delta(s.last - s.first))}</dd></div>` : ""}<div><dt>Average</dt><dd>${e(plot.text(s.avg))}</dd></div><div><dt>Min</dt><dd>${e(plot.text(s.min))}</dd></div><div><dt>Max</dt><dd>${e(plot.text(s.max))}</dd></div></dl>`
+    : "";
+  const tiles: string[] = metrics
+    .filter(
+      (m) =>
+        DASHBOARD_METRICS.includes(m.type) &&
+        (m.type === 1 || (series[m.type]?.length ?? 0) > 0),
+    )
+    .map((m) => {
+      const p = plotFor(m.type, unit);
+      const pts = scalePoints(series[m.type] ?? [], p.scale);
+      const st = stats(pts);
+      return `<a class="tile" href="${e(href(user.id, { [`metric_${user.id}`]: String(m.type) }))}"${m.type === metric ? ' aria-current="true"' : ""}><span class="tile-label">${e(m.label)}</span><strong class="tile-value">${st ? e(p.text(st.last)) : "—"}</strong><span class="tile-delta">${st && pts.length > 1 ? e(p.delta(st.last - st.first)) : "&nbsp;"}</span>${sparkline(pts, from, to)}</a>`;
+    });
+  const height = n(user.height_cm) / 100;
+  const weights = series[1] ?? [];
+  if (height > 0 && weights.length) {
+    const bmi = weights.map((p) => ({ t: p.t, v: p.v / (height * height) }));
+    const st = stats(bmi)!;
+    tiles.push(
+      `<div class="tile static"><span class="tile-label">BMI</span><strong class="tile-value">${number.format(Math.round(st.last * 10) / 10)}</strong><span class="tile-delta">${bmi.length > 1 ? e(signed(st.last - st.first, "")) : "&nbsp;"}</span>${sparkline(bmi, from, to)}</div>`,
+    );
+  }
+  return `<section class="card" id="user-${e(user.id)}"><div class="section-heading"><div>
+    <h2><a href="/users/${e(user.id)}/readings">${e(user.name)}</a></h2></div><a href="/users/${e(user.id)}/overview">Details →</a></div>
+    ${
+      readings.length
+        ? `<p class="metric">${metricLabel(readings[0], metric, unit)}</p>${rangeSwitch}<h3>${e(heading)}${plot.unit ? ` <span class="hint">${e(plot.unit)}</span>` : ""}</h3>${chart}${summary}
+    <div class="tiles">${tiles.join("")}</div>
+    <h3>Recent ${e(heading)} Readings</h3><div class="wide"><table><thead><tr><th>When</th><th>${e(heading)}</th><th>Scale</th></tr></thead><tbody>
+    ${readings.map((r) => `<tr data-reading-id="${e(r.id)}"><td>${readingTime(r)}</td><td>${metricLabel(r, metric, unit)}</td><td>${e(r.scale_label)}</td></tr>`).join("")}</tbody></table></div>`
+        : '<p class="empty">No readings recorded yet.</p>'
+    }</section>`;
+}
+export function dashboardPage(cards: DashboardCard[], unit: string): string {
+  // Every link keeps all users' current selections and jumps back to the card.
+  const selections: Record<string, string> = {};
+  for (const { user, metric = 1, range = "90d" } of cards) {
+    selections[`metric_${user.id}`] = String(metric);
+    selections[`range_${user.id}`] = range;
+  }
+  const href = (user: number, change: Record<string, string>) =>
+    `/?${new URLSearchParams({ ...selections, ...change })}#user-${user}`;
   return `<section class="page-heading"><div><h1>Dashboard</h1></div><a class="button secondary" href="/readings">View All Readings</a></section>
   ${
     cards.length
-      ? `<div class="cards">${cards
-          .map(
-            ({
-              user,
-              readings,
-              metrics = [METRICS[0]],
-              metric = 1,
-            }) => `<section class="card"><div class="section-heading"><div>
-    <h2><a href="/users/${e(user.id)}/readings">${e(user.name)}</a></h2></div><a href="/users/${e(user.id)}/readings">All Readings →</a></div>
-    ${metricPicker(metrics, metric, `metric_${user.id}`, selections)}
-    ${
-      readings.length
-        ? `<p class="metric">${metricLabel(readings[0], metric, unit)}</p><div class="wide"><table><thead><tr><th>When</th><th>${e(metricTitle(metric))}</th><th>Scale</th></tr></thead><tbody>
-    ${readings.map((r) => `<tr data-reading-id="${e(r.id)}"><td>${readingTime(r)}</td><td>${metricLabel(r, metric, unit)}</td><td>${e(r.scale_label)}</td></tr>`).join("")}</tbody></table></div>`
-        : '<p class="empty">No readings recorded yet.</p>'
-    }</section>`,
-          )
-          .join("")}</div>`
+      ? `<div class="cards">${cards.map((card) => dashboardCard(card, unit, href)).join("")}</div>`
       : '<section><p class="empty">No users have been added yet.</p><a class="button" href="/firmware">Add Your First Scale</a></section>'
   }`;
+}
+const rangeLinks = (base: string, range: RangeKey) =>
+  `<div class="range-switch" role="group" aria-label="Time range">${RANGES.map(
+    (r) =>
+      `<a href="${e(`${base}?range=${r.key}`)}"${r.key === range ? ' aria-current="true"' : ""}>${r.label}</a>`,
+  ).join("")}</div>`;
+const plural = (count: number, word: string) =>
+  `${count} ${word}${count === 1 ? "" : "s"}`;
+function habitsHint(h: Habits): string {
+  const window = `${String(MORNING.from).padStart(2, "0")}:00–${String(MORNING.to).padStart(2, "0")}:00`;
+  const pct = Math.round(h.morningShare * 100);
+  const zone = h.zoneAssumed
+    ? " The scale has no time zone set, so UTC was assumed."
+    : "";
+  if (h.verdict === "unknown")
+    return `<p class="hint-box">Not enough weigh-ins in this range to judge when you weigh yourself (${h.count}; at least 10 needed).${zone}</p>`;
+  if (h.verdict === "comparable")
+    return `<p class="hint-box good"><strong>Comparable readings.</strong> ${pct}% of your weigh-ins are between ${window}, so changes in weight are likely real rather than time-of-day swings.${zone}</p>`;
+  return `<p class="hint-box warn"><strong>Mixed weigh-in times.</strong> Only ${pct}% of your weigh-ins are between ${window}; the typical time is ${clock(h.medianMinutes)}. Body weight moves by a kilogram or more over a day, so weighing at a similar time (ideally mornings, before eating) makes the trend more reliable.${zone}</p>`;
+}
+export function userOverviewPage(data: {
+  user: Row;
+  unit: string;
+  range: RangeKey;
+  metrics: Metric[];
+  series: Record<number, Point[]>;
+  from: number;
+  to: number;
+  habits: Habits;
+}): string {
+  const { user, unit, range, metrics, series, from, to, habits } = data;
+  const rangeInfo = RANGES.find((r) => r.key === range)!;
+  const spanText = rangeInfo.days ? `the last ${rangeInfo.label}` : "all time";
+  const base = `/users/${user.id}/overview`;
+  const chartFor = (type: number, big: boolean) => {
+    const plot = plotFor(type, unit);
+    const pts = scalePoints(series[type] ?? [], plot.scale);
+    const st = stats(pts);
+    const title = metricTitle(type);
+    const body = pts.length
+      ? lineChart(pts, {
+          from,
+          to,
+          label: `${title} over ${spanText}`,
+          text: plot.text,
+          axis: plot.axis,
+          trend: big,
+        })
+      : `<p class="empty">No ${e(title)} readings in this range.</p>`;
+    const summary = st
+      ? `<dl class="chart-stats">${pts.length > 1 ? `<div><dt>Change</dt><dd>${e(plot.delta(st.last - st.first))}</dd></div>` : ""}<div><dt>Average</dt><dd>${e(plot.text(st.avg))}</dd></div><div><dt>Min</dt><dd>${e(plot.text(st.min))}</dd></div><div><dt>Max</dt><dd>${e(plot.text(st.max))}</dd></div></dl>`
+      : "";
+    return `<section class="card chart-card"><h2>${e(title)}${plot.unit ? ` <span class="hint">${e(plot.unit)}</span>` : ""}</h2>${body}${summary}</section>`;
+  };
+  const height = n(user.height_cm) / 100;
+  const weights = series[1] ?? [];
+  const bmiCard =
+    height > 0 && weights.length
+      ? (() => {
+          const pts = weights.map((p) => ({
+            t: p.t,
+            v: p.v / (height * height),
+          }));
+          return `<section class="card chart-card"><h2>BMI</h2>${lineChart(pts, { from, to, label: `BMI over ${spanText}`, text: (v) => (Math.round(v * 10) / 10).toString(), axis: (v) => number.format(v) })}</section>`;
+        })()
+      : "";
+  const others = metrics.filter(
+    (m) => m.type !== 1 && (series[m.type]?.length ?? 0) > 0,
+  );
+  const hourBars = habits.hours.map((count, hour) => ({
+    label: String(hour).padStart(2, "0"),
+    value: count,
+    highlight: hour >= MORNING.from && hour < MORNING.to,
+  }));
+  const weekdayBars = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
+    (label, i) => ({ label, value: habits.weekdays[i] }),
+  );
+  const monthBars = habits.months.slice(-24).map((m) => ({
+    label: new Intl.DateTimeFormat("en-GB", {
+      month: "short",
+      year: "2-digit",
+      timeZone: "UTC",
+    }).format(new Date(`${m.key}-01T00:00:00Z`)),
+    value: m.count,
+  }));
+  return `<section class="page-heading"><div><a href="/">← Dashboard</a><h1>${e(user.name)}</h1></div><a class="button secondary" href="/users/${e(user.id)}/readings">All Readings</a></section>
+  ${rangeLinks(base, range)}
+  ${chartFor(1, true)}
+  <section class="card habits"><h2>When You Weigh Yourself</h2>${habitsHint(habits)}
+    <dl class="chart-stats"><div><dt>Weigh-ins</dt><dd>${habits.count}</dd></div><div><dt>Days with a weigh-in</dt><dd>${habits.days}</dd></div><div><dt>Per week</dt><dd>${number.format(Math.round(habits.perWeek * 10) / 10)}</dd></div><div><dt>Typical time</dt><dd>${habits.count ? clock(habits.medianMinutes) : "—"}</dd></div><div><dt>Longest pause</dt><dd>${plural(habits.longestGapDays, "day")}</dd></div></dl>
+    ${habits.count ? `<h3>Time Of Day <span class="hint">highlighted: morning ${String(MORNING.from).padStart(2, "0")}:00–${String(MORNING.to).padStart(2, "0")}:00</span></h3>${barChart(hourBars, { label: "Weigh-ins by hour of day", unit: "weigh-ins", every: 2 })}<h3>Weekday</h3>${barChart(weekdayBars, { label: "Weigh-ins by weekday", unit: "weigh-ins" })}<h3>Per Month</h3>${barChart(monthBars, { label: "Weigh-ins per month", unit: "weigh-ins", every: Math.ceil(monthBars.length / 12) })}` : ""}
+  </section>
+  <div class="chart-grid">${bmiCard}${others.map((m) => chartFor(m.type, false)).join("")}</div>`;
 }
 export function readingsPage(
   readings: Row[],
@@ -253,7 +453,7 @@ export function usersPage(
   fetchMode?: "verified-tls" | "plaintext-http",
   importScaleId?: number,
 ): string {
-  return `<section><div class="page-heading"><div><h1>Users</h1></div><div class="actions"><button type="button" class="secondary" data-open-dialog="import-users-dialog">Import From Withings</button><button type="button" data-open-dialog="add-user-dialog">Add User</button></div></div>
+  return `<section><div class="page-heading"><div><h1>Users</h1></div><div class="actions"><a class="button secondary" href="/import/withings">Import Withings Data Export</a><button type="button" class="secondary" data-open-dialog="import-users-dialog">Import From Withings</button><button type="button" data-open-dialog="add-user-dialog">Add User</button></div></div>
     ${
       preview
         ? `<dialog id="import-preview-dialog" data-auto-open><button class="dialog-close" type="button" data-close-dialog>×</button><h2>Import Users From ${e(preview.scale.label)}</h2><p>${preview.settingsStatus === "configured" || scaleModel(preview.scale.model)?.classicGates ? "Device settings are ready." : "Device settings import is incomplete; use Finish Device Import on Scales to retry."} Existing users are retained.</p>
@@ -294,4 +494,51 @@ export function usersPage(
       <form action="/users/${e(u.id)}/delete" method="post" data-confirm="Delete this user locally? Their readings will become unassigned.">${hidden(csrf)}<button class="danger">Delete User</button></form></div></dialog>`,
       )
       .join("")}`;
+}
+
+export function withingsImportPage(csrf: string): string {
+  return `<section><a href="/users">← Users</a><h1>Import Withings Data Export</h1>
+    <p>Upload the ZIP you get from Withings (Health Mate app: Settings → Account → Download your data, or account.withings.com). Weight, fat, bone, muscle and water measurements are imported; nothing is changed until you have reviewed the preview. Steps, sleep, heart rate and location data in the export are ignored.</p>
+    <form action="/import/withings" method="post" enctype="multipart/form-data">${hidden(csrf)}<label>Export ZIP<input type="file" name="export" accept=".zip,application/zip" required></label><button>Preview Import</button></form></section>`;
+}
+export function withingsPreviewPage(
+  csrf: string,
+  id: string,
+  meta: StageMeta,
+  users: Row[],
+  scales: Row[],
+  suggestion: { id: number; reason: string } | null,
+  scaleMatch: number | null,
+): string {
+  const day = (d: string) => e(d.slice(0, 10));
+  const needs = !scales.length
+    ? '<p class="hint-box warn">Add a scale first; every reading belongs to a scale. <a href="/scales">Go to Scales</a></p>'
+    : "";
+  const name = meta.firstname.trim();
+  const short = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z]/g, "")
+    .slice(0, 3)
+    .toUpperCase();
+  return `<section><a href="/import/withings">← Choose Another File</a><h1>Review Withings Import</h1>
+    <dl><dt>File</dt><dd>${e(meta.fileName)}</dd><dt>Weigh-ins</dt><dd>${meta.count} (${day(meta.first)} to ${day(meta.last)}), ${meta.withComposition} with body composition</dd>
+    <dt>Latest</dt><dd>${e(meta.last)} (local time in the export)</dd>${meta.heightM ? `<dt>Height in export</dt><dd>${Math.round(meta.heightM * 100)} cm</dd>` : ""}
+    ${meta.ignoredMetrics.length ? `<dt>Not imported</dt><dd>${e(meta.ignoredMetrics.join(", "))} (no matching YOW metric)</dd>` : ""}</dl>
+    ${needs}
+    ${
+      scales.length
+        ? `<form action="/import/withings/commit" method="post">${hidden(csrf)}<input type="hidden" name="import_id" value="${e(id)}">
+    <label>Assign To User<select name="user_id" required>${users.map((u) => option(u.id, `${u.name} (${u.short_name})`, suggestion?.id)).join("")}${option("new", "Create New User From Export", suggestion ? "" : "new")}</select></label>
+    ${suggestion ? `<p class="hint">Suggested from the ${e(suggestion.reason)}. Check this before importing.</p>` : '<p class="hint">No existing user matched the name in the export, so a new one is proposed below.</p>'}
+    <fieldset><legend>New User (Only Used When &quot;Create New User&quot; Is Chosen)</legend><div class="device-grid"><label>Name<input name="name" value="${e(name)}" maxlength="100"></label><label>Short Name<input name="short_name" value="${e(short)}" maxlength="3"></label><label>Height (cm)<input name="height_cm" type="number" step="1" value="${meta.heightM ? Math.round(meta.heightM * 100) : ""}"></label><label>Date of Birth<input name="birth_date" type="date" value="${e(meta.birthDate)}"></label><label>Sex<select name="sex">${option(0, "Male", meta.sex)}${option(1, "Female", meta.sex)}</select></label><label>Recognition Weight (kg)<input name="reference_weight_kg" type="number" step="any" value="${meta.latestKg ? e(meta.latestKg) : ""}"></label></div><p class="hint">The new user is not added to any scale; enable that under Users when you want the scale to recognise them.</p></fieldset>
+    <label>Attribute To Scale<select name="scale_id" required>${scales.map((sc) => option(sc.id, `${sc.label}${sc.mac ? ` · ${sc.mac}` : ""}`, scaleMatch)).join("")}</select></label>
+    <p class="hint">${scaleMatch ? "Preselected: its address matches the device in the export." : "Only used to label the imported readings."}</p>
+    <label>Time Zone Of The Export Times${timeZoneSelect("time_zone", meta.zone)}</label>
+    <p class="hint">Withings writes local times. Using the device's time zone (${e(meta.zone)}) keeps morning weigh-ins in the morning.</p>
+    <label><input type="checkbox" name="confirmed" value="1" required> I Have Reviewed This Import</label>
+    <p class="hint">Weigh-ins already stored for this user within three minutes are skipped, so importing twice is safe.</p>
+    <div class="dialog-actions"><button>Import ${meta.count} Weigh-Ins</button><a href="/import/withings">Cancel</a></div></form>`
+        : ""
+    }</section>`;
 }

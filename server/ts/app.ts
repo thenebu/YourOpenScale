@@ -1,10 +1,20 @@
 /** One HTTP application for Cloudflare Workers and the local Node listener. */
 import {
   metricValue,
+  metricSeries,
   namedMetrics,
   observedMetrics,
   storedMeasures,
 } from "./metrics.ts";
+import type { Point } from "./charts.ts";
+import { weighHabits } from "./habits.ts";
+import {
+  commitWithingsImport,
+  parseExportZip,
+  stageWithingsImport,
+  stagedMeta,
+  suggestUser,
+} from "./withings_import.ts";
 import { refreshRecognitionWeight } from "./recognition.ts";
 import { exportBackup, stageBackup, commitBackup } from "./backup.ts";
 import {
@@ -18,14 +28,24 @@ import {
   syncPage,
 } from "./integrated_ui.ts";
 import { scaleModel } from "./models.ts";
-import { handleScaleRequest, zoneTriplet, roster, screenIds } from "./scale_api.ts";
 import {
+  handleScaleRequest,
+  zoneTriplet,
+  roster,
+  screenIds,
+} from "./scale_api.ts";
+import {
+  DASHBOARD_METRICS,
+  RANGES,
   dashboardPage,
   escapeHtml,
   layout,
   loginPage,
   readingsPage,
   setupPage,
+  userOverviewPage,
+  withingsImportPage,
+  withingsPreviewPage,
   userReadingsPage,
   usersPage,
 } from "./ui.ts";
@@ -482,7 +502,9 @@ function parseDeviceRecord(raw: string): Row {
       record.bootloader_version !== model.bootloader ||
       !model.enrolledFirmware.includes(record.firmware_version))
   ) {
-    throw new Error(`BLE identity is outside the reviewed ${record.model} profile`);
+    throw new Error(
+      `BLE identity is outside the reviewed ${record.model} profile`,
+    );
   }
   if (
     model.transport === "classic" &&
@@ -819,6 +841,42 @@ function parsedUser(form: FormData): {
   )
     throw new Error("Invalid profile fields");
   return { name, short, height, age, dob, sex, weight, scales };
+}
+
+async function createUser(
+  db: D1Database,
+  user: ReturnType<typeof parsedUser>,
+): Promise<number> {
+  const highest = await one<{ id: number }>(
+    db,
+    "SELECT COALESCE(MAX(id),0)+1 AS id FROM users",
+  );
+  const id = Math.max(
+    highest?.id ?? 1,
+    Number((await setting(db, "next_local_user_id")) ?? "1"),
+  );
+  if (id > 2147483647) throw new Error("No user IDs remain");
+  const memberships = await updateMemberships(db, id, user.scales);
+  await db.batch([
+    db
+      .prepare(
+        "INSERT INTO users(id,name,short_name,height_cm,age_years,birth_date,sex,reference_weight_kg,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+      )
+      .bind(
+        id,
+        user.name,
+        user.short,
+        user.height,
+        user.age,
+        user.dob,
+        user.sex,
+        user.weight,
+        now(),
+      ),
+    ...memberships,
+    saveSetting(db, "next_local_user_id", String(id + 1)),
+  ]);
+  return id;
 }
 
 // Failed attempts only: ordinary household polling never consumes this budget.
@@ -1204,7 +1262,8 @@ async function previewProfile(db: D1Database, id: number) {
   return {
     scaleId: id,
     model: scale?.model,
-    settingsReady: !!scaleModel(scale?.model)?.classicGates || scale?.settings_ready === 1,
+    settingsReady:
+      !!scaleModel(scale?.model)?.classicGates || scale?.settings_ready === 1,
     digest: stored?.digest,
     users:
       stored?.capture
@@ -1680,6 +1739,96 @@ export async function handleApp(
     }
     return json({ error: "Not found" }, 404);
   }
+  if (path.startsWith("/import/withings") && method === "POST") {
+    if (!loggedIn) return go("/login");
+    try {
+      const form = await request.formData();
+      if (!equal(formText(form, "_csrf"), csrf))
+        return new Response("Invalid CSRF token", { status: 403 });
+      if (path === "/import/withings") {
+        const file = form.get("export");
+        if (!(file instanceof File) || file.size > 64 * 1024 * 1024)
+          throw new Error("Choose the export ZIP (at most 64 MiB)");
+        const parsed = await parseExportZip(
+          new Uint8Array(await file.arrayBuffer()),
+        );
+        const { id, meta } = await stageWithingsImport(
+          db,
+          parsed,
+          file.name.slice(0, 120),
+          browser.token_hash,
+        );
+        const users = await rows(
+          db,
+          "SELECT id,name,short_name FROM users WHERE active=1 ORDER BY name",
+        );
+        const scales = await rows(
+          db,
+          "SELECT id,label,mac FROM scales ORDER BY label,id",
+        );
+        const match = scales.find(
+          (s) => meta.mac && String(s.mac).toLowerCase() === meta.mac,
+        );
+        return page(
+          "Review Withings Import",
+          withingsPreviewPage(
+            csrf,
+            id,
+            meta,
+            users,
+            scales,
+            suggestUser(users as any, file.name, meta.firstname),
+            match ? Number(match.id) : null,
+          ),
+          "/users",
+        );
+      }
+      if (path === "/import/withings/commit") {
+        if (formText(form, "confirmed") !== "1")
+          throw new Error("Confirm the reviewed import first");
+        const importId = formText(form, "import_id");
+        await stagedMeta(db, importId, browser.token_hash);
+        const choice = formText(form, "user_id");
+        let user = { id: 0, name: "" };
+        const resolveUser = async () => {
+          if (choice === "new") {
+            // Same validation as Users > Add User. No scale membership is
+            // granted, so the scale's roster does not change.
+            const profile = parsedUser(form);
+            user = { id: await createUser(db, profile), name: profile.name };
+            return user.id;
+          }
+          const existing = await one(
+            db,
+            "SELECT id,name FROM users WHERE id=?",
+            Number(choice),
+          );
+          if (!existing) throw new Error("Choose a user");
+          user = { id: Number(existing.id), name: String(existing.name) };
+          return user.id;
+        };
+        const result = await commitWithingsImport(
+          db,
+          importId,
+          browser.token_hash,
+          resolveUser,
+          formInteger(form, "scale_id"),
+          formText(form, "time_zone"),
+        );
+        return go(
+          `/users/${user.id}/overview?range=all`,
+          `Imported ${result.inserted} weigh-ins for ${user.name}; ${result.existing} already present, ${result.invalid} skipped`,
+        );
+      }
+    } catch (error) {
+      return page(
+        "Import Not Completed",
+        `<section><h1>Import Not Completed</h1><p>${escapeHtml(safeError(error))}</p><a href="/import/withings">Back</a></section>`,
+        "/users",
+      );
+    }
+    return json({ error: "Not found" }, 404);
+  }
   if (method === "POST") {
     const submitted = await request.formData();
     if (!equal(formText(submitted, "_csrf"), csrf))
@@ -1715,16 +1864,33 @@ export async function handleApp(
       "SELECT * FROM users WHERE active=1 ORDER BY id",
     );
     const cards = [];
+    const now = Math.floor(Date.now() / 1000);
     for (const user of users) {
       const metrics = await observedMetrics(db, user.id);
       const metric =
         metrics.find(
           (m) => m.type === Number(url.searchParams.get(`metric_${user.id}`)),
         )?.type ?? 1;
+      const range =
+        RANGES.find(
+          (r) => r.key === url.searchParams.get(`range_${user.id}`),
+        ) ?? RANGES[1];
+      const since = range.days ? now - range.days * 86400 : 0;
+      const series: Record<number, Point[]> = {};
+      for (const m of metrics.filter((v) => DASHBOARD_METRICS.includes(v.type)))
+        series[m.type] = await metricSeries(db, user.id, m.type, since);
+      // "All" starts at the first reading; fixed windows always show their full span.
+      const first = Math.min(
+        ...Object.values(series).map((s) => s[0]?.t ?? now),
+      );
       cards.push({
         user,
         metrics,
         metric,
+        range: range.key,
+        series,
+        from: since || Math.min(first, now - 86400),
+        to: now,
         readings: await rows(
           db,
           `SELECT r.*,s.label AS scale_label FROM readings r JOIN scales s ON s.id=r.scale_id
@@ -1769,6 +1935,47 @@ export async function handleApp(
         metric,
       ),
       "/readings",
+    );
+  }
+  if (path === "/import/withings")
+    return page("Import Withings Data", withingsImportPage(csrf), "/users");
+  const overview = /^\/users\/(\d+)\/overview$/.exec(path);
+  if (overview) {
+    const id = Number(overview[1]);
+    const user = await one(db, "SELECT * FROM users WHERE id=?", id);
+    if (!user) return new Response("Not Found", { status: 404 });
+    const now = Math.floor(Date.now() / 1000);
+    const range =
+      RANGES.find((r) => r.key === url.searchParams.get("range")) ?? RANGES[1];
+    const since = range.days ? now - range.days * 86400 : 0;
+    const metrics = await observedMetrics(db, id);
+    const series: Record<number, Point[]> = {};
+    for (const m of metrics)
+      series[m.type] = await metricSeries(db, id, m.type, since);
+    const times = await rows<{ t: number; time_zone: string | null }>(
+      db,
+      `SELECT CASE WHEN r.time_quality='trusted' THEN r.meastime ELSE r.first_received_at END AS t, s.time_zone
+       FROM readings r JOIN scales s ON s.id=r.scale_id
+       WHERE r.user_id=? AND r.weight_value IS NOT NULL AND t>=?`,
+      id,
+      since,
+    );
+    const first = Math.min(...Object.values(series).map((s) => s[0]?.t ?? now));
+    return page(
+      `${user.name}`,
+      userOverviewPage({
+        user,
+        unit: (await setting(db, "display_weight_unit")) ?? "kg",
+        range: range.key,
+        metrics,
+        series,
+        from: since || Math.min(first, now - 86400),
+        to: now,
+        habits: weighHabits(
+          times.map((r) => ({ t: Number(r.t), zone: r.time_zone })),
+        ),
+      }),
+      "/",
     );
   }
   const userReadings = /^\/users\/(\d+)\/readings$/.exec(path);
@@ -2382,7 +2589,9 @@ async function browserPost(
         }
         if (scaleModel(scale.model)?.classicGates) {
           if (formText(form, "roster_enabled") === "1")
-            throw new Error("On-scale roster delivery is not implemented for this model");
+            throw new Error(
+              "On-scale roster delivery is not implemented for this model",
+            );
           await run(
             db,
             "UPDATE scales SET label=?,time_zone=? WHERE id=?",
@@ -2508,35 +2717,7 @@ async function browserPost(
 
     if (path === "/users") {
       const user = parsedUser(form);
-      const highest = await one<{ id: number }>(
-        db,
-        "SELECT COALESCE(MAX(id),0)+1 AS id FROM users",
-      );
-      const id = Math.max(
-        highest?.id ?? 1,
-        Number((await setting(db, "next_local_user_id")) ?? "1"),
-      );
-      if (id > 2147483647) throw new Error("No user IDs remain");
-      const memberships = await updateMemberships(db, id, user.scales);
-      await db.batch([
-        db
-          .prepare(
-            "INSERT INTO users(id,name,short_name,height_cm,age_years,birth_date,sex,reference_weight_kg,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
-          )
-          .bind(
-            id,
-            user.name,
-            user.short,
-            user.height,
-            user.age,
-            user.dob,
-            user.sex,
-            user.weight,
-            now(),
-          ),
-        ...memberships,
-        saveSetting(db, "next_local_user_id", String(id + 1)),
-      ]);
+      const id = await createUser(db, user);
       return go("/users", `User ${user.name} added as stable scale ID ${id}`);
     }
     const userDelete = /^\/users\/(\d+)\/delete$/.exec(path);

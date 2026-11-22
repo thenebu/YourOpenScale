@@ -553,28 +553,15 @@ test("dashboard metric form submissions preserve other users' current selections
       );
     }
     let html = await (await h.web("/")).text();
-    // Submit the actual rendered hidden fields and changed selector, as a GET
-    // form does with either auto-submit or the Show button (no JS required).
+    // Follow the rendered tile link, which must carry every other user's
+    // current selection, exactly as a browser would.
     const choose = async (name: string, value: string) => {
-      const form = [
-        ...html.matchAll(
-          /<form method="get" class="metric-picker">([\s\S]*?)<\/form>/g,
-        ),
-      ]
-        .map((m) => m[1])
-        .find((s) => s.includes(`<select name="${name}"`));
-      assert.ok(form);
-      assert.match(form, new RegExp(`<option value="${value}"(?: selected)?>`));
-      const fields = new URLSearchParams(
-        [
-          ...form.matchAll(
-            /<input type="hidden" name="([^"]+)" value="([^"]*)">/g,
-          ),
-        ].map((m) => [m[1], m[2]]),
-      );
-      fields.append(name, value);
-      assert.equal(fields.getAll(name).length, 1);
-      html = await (await h.web(`/?${fields}`)).text();
+      const link = [...html.matchAll(/<a class="tile" href="([^"]+)"/g)]
+        .map((m) => m[1].replaceAll("&amp;", "&"))
+        .find((href) => new URL(href, "http://x").searchParams.get(name) === value);
+      assert.ok(link, `tile link for ${name}=${value}`);
+      const fields = new URL(link, "http://x").searchParams;
+      html = await (await h.web(link.split("#")[0])).text();
       return fields;
     };
     await choose("metric_17", "11");
@@ -726,10 +713,26 @@ test("WBS13 authenticates, receives its local roster every session and stores mi
     const html = await (await h.web("/")).text();
     assert.match(html, /80\.00 kg/);
     assert.match(html, />Heart Rate</);
-    assert.doesNotMatch(html, /<select name="metric_18"/); // Sam has no new metric.
+    assert.doesNotMatch(html, /name="metric_18"/); // Sam has no readings, hence no tiles.
     const heart = await (await h.web("/?metric_17=11")).text();
     assert.match(heart, /72 bpm/);
-    assert.doesNotMatch(heart, /0\.00 kg/);
+    assert.doesNotMatch(heart, /(?<![\d.])0\.00 kg/);
+    // Heart rate shows wherever a user has values, and only there.
+    assert.match(await (await h.web("/")).text(), /class="tile-label">Heart Rate/);
+    const overview = await (await h.web("/users/17/overview?range=1y")).text();
+    assert.match(overview, /<h2>Heart Rate/);
+    assert.match(overview, /When You Weigh Yourself/);
+    assert.match(overview, /aria-label="Weigh-ins by hour of day"/);
+    assert.doesNotMatch(
+      await (await h.web("/users/18/overview")).text(),
+      /<h2>Heart Rate/,
+    );
+    assert.equal((await h.web("/users/9999/overview")).status, 404);
+    // Range selection is per user and unknown values fall back to 90 days.
+    const ranged = await (await h.web("/?range_17=30d&range_18=bogus")).text();
+    assert.match(ranged, /range_17=30d[^"]*" aria-current="true">30 days/);
+    assert.match(ranged, /range_18=90d[^"]*" aria-current="true">90 days|No readings recorded yet/);
+    assert.match(ranged, /<svg viewBox="0 0 640 250" role="img" aria-label="Weight over the last 30 days"/);
     assert.match(await (await h.web("/readings?metric=8")).text(), /20\.00 kg/);
     // More recent weight-only rows must not hide previously received metrics.
     for (let i = 0; i < 12; i++)

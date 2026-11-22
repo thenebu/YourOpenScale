@@ -886,3 +886,202 @@ label input[type="checkbox"] {
 .metric-picker button {
   margin: 0;
 }
+
+/* Dashboard charts: inline SVG drawn by server/ts/charts.ts. */
+.card h3 {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 1rem;
+}
+.card h3 .hint {
+  display: inline;
+  margin-left: 0.25rem;
+}
+.range-switch {
+  display: flex;
+  width: fit-content;
+  margin: 0.4rem 0 0.2rem;
+  border: 1px solid #c4d8d8;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.range-switch a {
+  padding: 0.25rem 0.8rem;
+  font-size: 0.875rem;
+  text-decoration: none;
+  color: #19303a;
+  background: #fff;
+}
+.range-switch a + a {
+  border-left: 1px solid #c4d8d8;
+}
+.range-switch a[aria-current="true"] {
+  background: #087a76;
+  color: #fff;
+}
+.chart {
+  margin: 0;
+}
+.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.chart .grid {
+  stroke: #d9e6e6;
+  stroke-width: 1;
+}
+.chart .axis {
+  fill: #53666c;
+  font-size: 13px;
+}
+.chart .line,
+.chart .trend {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.chart .line {
+  stroke: #087a76;
+  stroke-width: 2;
+}
+.chart .area {
+  fill: #087a76;
+  fill-opacity: 0.08;
+}
+.chart .trend {
+  stroke: #19303a;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  opacity: 0.7;
+}
+.chart .pt {
+  fill: #087a76;
+  stroke: #fff;
+  stroke-width: 1;
+}
+.chart .pt.active {
+  fill: #19303a;
+  r: 5;
+}
+.chart-readout {
+  min-height: 1.5rem;
+  color: #53666c;
+  font-size: 0.85rem;
+}
+.chart-readout .legend {
+  margin-left: 0.75rem;
+  white-space: nowrap;
+}
+.chart-readout .swatch {
+  display: inline-block;
+  width: 1.1rem;
+  height: 0;
+  margin: 0 0.3rem 0.2rem 0.5rem;
+  border-top: 2px solid #087a76;
+}
+.chart-readout .swatch.trend {
+  border-top: 2px dashed #19303a;
+}
+.chart-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.5rem;
+  margin: 0.4rem 0 0;
+}
+.chart-stats div {
+  display: flex;
+  gap: 0.4rem;
+}
+.chart-stats dt {
+  color: #53666c;
+}
+.chart-stats dd {
+  margin: 0;
+  font-weight: 650;
+}
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.6rem;
+  margin: 1.2rem 0 0;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d9e6e6;
+  border-radius: 0.6rem;
+  background: #fff;
+  color: #19303a;
+  text-decoration: none;
+}
+.tile[aria-current="true"] {
+  border-color: #087a76;
+  box-shadow: 0 0 0 1px #087a76;
+}
+a.tile:hover {
+  border-color: #087a76;
+}
+.tile-label {
+  color: #53666c;
+  font-size: 0.8rem;
+}
+.tile-value {
+  font-size: 1.05rem;
+}
+.tile-delta {
+  color: #53666c;
+  font-size: 0.8rem;
+}
+.tile .spark {
+  width: 100%;
+  height: 1.7rem;
+  margin-top: 0.2rem;
+}
+.tile .spark path {
+  fill: none;
+  stroke: #087a76;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* User overview page. */
+.chart-card {
+  margin-bottom: 1rem;
+}
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 1rem;
+}
+.chart-grid .chart-card {
+  margin-bottom: 0;
+}
+.chart .bar {
+  fill: #9fc9c6;
+}
+.chart .bar.hl {
+  fill: #087a76;
+}
+.hint-box {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.5rem;
+  background: #eef3f4;
+  border-left: 4px solid #53666c;
+}
+.hint-box.good {
+  background: #e8f5ef;
+  border-color: #236a4e;
+}
+.hint-box.warn {
+  background: #fff1df;
+  border-color: #936026;
+}
+.habits h3 .hint {
+  display: inline;
+  margin-left: 0.4rem;
+}
